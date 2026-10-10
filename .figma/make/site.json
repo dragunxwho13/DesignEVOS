@@ -1,0 +1,10 @@
+{
+  "description": "Explore the EVOS platform for electric vehicle operations, featuring an interactive dashboard, fleet management tools, and sustainability analytics for informed decision-making.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
