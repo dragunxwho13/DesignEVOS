@@ -3,7 +3,7 @@ import { Play, Pause, RotateCcw } from "lucide-react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link } from "../lib/router";
-import { Panel, Metric, Status, Badge, Segmented, Note, cx, Button, Field, inputCls, Slider, Toggle, Empty } from "../components/ui";
+import { Panel, Metric, Status, Badge, Segmented, Note, cx, Button, Field, inputCls, Slider, Toggle, Empty, Tween } from "../components/ui";
 import { TimeChart, C } from "../components/charts";
 import EnergySchematic from "../components/EnergySchematic";
 import { Architecture } from "../site/Site";
@@ -78,8 +78,8 @@ export function Scenarios() {
                     return (
                       <tr key={l}>
                         <td className="py-2.5">{l}</td>
-                        <td className="tnum text-right">{fmt(bv)}{l.startsWith("Vehicles") && ` / ${b.requested}`}</td>
-                        <td className="tnum text-right font-medium">{sv !== undefined ? <>{fmt(sv)}{l.startsWith("Vehicles") && ` / ${s!.requested}`}</> : <span className="text-muted">—</span>}</td>
+                        <td className="tnum text-right"><Tween value={`${fmt(bv)}${l.startsWith("Vehicles") ? ` / ${b.requested}` : ""}`} /></td>
+                        <td className="tnum text-right font-medium">{sv !== undefined ? <Tween value={`${fmt(sv)}${l.startsWith("Vehicles") ? ` / ${s!.requested}` : ""}`} /> : <span className="text-muted">—</span>}</td>
                         <td className={cx("tnum text-right text-xs", sv === undefined || Math.abs(d) < 0.005 ? "text-muted" : good ? "text-ok" : "text-err")}>
                           {sv === undefined ? "" : Math.abs(d) < 0.005 ? "no change" : `${d > 0 ? "▲ +" : "▼ "}${fmt(Math.abs(d) * (d < 0 ? -1 : 1)).replace("₹-", "-₹")}`}
                         </td>
@@ -143,7 +143,7 @@ export function SystemView() {
     <>
       <PageHeader title="System view" sub="Schematic of the simulated depot. Line thickness scales with power; moving traces show flow direction. Select an asset for detail." />
       <Panel title={<span className="flex items-center gap-2">Schematic <Badge tone="warn">Simulated</Badge>{t >= NOW && <Badge tone="cyan">Forecast</Badge>}</span>} right={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button size="sm" variant="secondary" onClick={() => { if (t >= STEPS - 1) setT(0); setPlaying(!playing); }} aria-label={playing ? "Pause timeline" : "Play timeline"}>{playing ? <Pause size={14} /> : <Play size={14} />}{playing ? "Pause" : "Play day"}</Button>
           <label htmlFor="sv-t" className="sr-only">Time of day</label>
           <input id="sv-t" type="range" min={0} max={STEPS - 1} value={t} onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }} className="w-40 accent-cyan md:w-56" />
@@ -258,13 +258,13 @@ export function Settings() {
     const blob = new Blob([JSON.stringify({ kind: "evos-simulation-config", version: 1, exportedAt: new Date().toISOString(), provenance: "illustrative", config: a }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob); const el = document.createElement("a"); el.href = url; el.download = "evos-config.json"; el.click(); URL.revokeObjectURL(url);
   };
-  const groups: [string, Num[]][] = [["Fleet & charging", ["requesting"]], ["Energy assets", ["pvKWp", "solarMult", "storageKWh", "storageKW", "reservePct", "storageStartPct", "gridLimitKW"]], ["Tariff", ["tariffINR", "peakMult"]], ["Emissions", ["carbonG"]]];
+  const groups: [string, Num[], boolean][] = [["Fleet & charging", ["requesting"], false], ["Core energy assumptions", ["reservePct", "gridLimitKW", "solarMult"], false], ["Tariff and emissions", ["tariffINR", "carbonG"], false], ["Advanced settings · asset sizes and start state", ["pvKWp", "storageKWh", "storageKW", "storageStartPct", "peakMult"], true]];
   return (
     <>
       <PageHeader title="Simulation configuration" sub="Illustrative assumptions for the EVOS reference campus — not verified measurements. Saving re-runs the simulation so every view updates together; each run is linked to this configuration." />
       <form onSubmit={(e) => { e.preventDefault(); save(); }} noValidate className="grid gap-5 lg:grid-cols-2">
-        {groups.map(([g, ks]) => (
-          <Panel key={g} title={g}>
+        {groups.map(([g, ks, adv]) => (
+          <Panel key={g} title={g} sub={adv ? `${ks.filter((k) => !!errs[k]).length ? "▲ Contains errors — " : ""}PV ${d.pvKWp} kWp · storage ${d.storageKWh} kWh / ${d.storageKW} kW` : undefined} collapsible={adv ? "set-adv" : undefined} defaultOpen={false}>
             <div className="grid gap-4 sm:grid-cols-2">
               {ks.map((k) => (
                 <Field key={k} id={`set-${k}`} label={`${LIMITS[k][3]} (${LIMITS[k][2]})`} error={errs[k]} help={`Range ${LIMITS[k][0]}–${LIMITS[k][1]} · default ${DEFAULTS[k]}`}>
@@ -312,14 +312,14 @@ export function Methodology() {
       <div className="space-y-5">
         <Panel title="Six-layer framework"><Architecture inApp /></Panel>
         <div className="grid gap-5 lg:grid-cols-2">
-          <Panel title="Demo data">
+          <Panel title="Explore dataset details" sub="20 vehicles · 6 chargers · 100 kWp PV · 100 kWh storage (defaults)" collapsible="me-data" defaultOpen={false}>
             <table className="w-full text-sm"><tbody className="divide-y divide-line">
               {[["Fleet", "20 vehicles: 6 shuttle buses, 10 utility carts, 4 service vans — not a real fleet"], ["Chargers", "6: two 30 kW DC, four 7.4 kW AC; compatibility enforced"], ["Rooftop solar", "100 kWp capacity (not instantaneous output)"], ["Stationary battery", "100 kWh capacity; 50 kW power"], ["Reserve · grid limit", "20% · 80 kW (defaults, editable)"], ["Currency", "INR; illustrative tariffs"], ["Period", "One demo day in 15-minute steps; 7-day weather variation"]].map(([k, v]) => (
                 <tr key={k}><th className="py-2.5 pr-4 text-left align-top font-medium">{k}</th><td className="py-2.5 text-muted">{v}</td></tr>
               ))}
             </tbody></table>
           </Panel>
-          <Panel title="Algorithms">
+          <Panel title="Algorithms" sub="Scheduler strategies, dispatch, forecasting, battery health, emissions" collapsible="me-alg" defaultOpen={false}>
             <ol className="list-decimal space-y-2.5 pl-4 text-sm text-muted">
               <li><b className="text-ink">Scheduler strategies</b> — FCFS (arrival order, full power, no site cap); rule-based (High priority first, then earliest departure); EVOS: weighted priority score (urgency 0.45, SoC deficit 0.2, low slack 0.2, service class 0.15); greedy placement on the compatible charger with earliest finish, delayed when the site power cap would be exceeded.</li>
               <li><b className="text-ink">Energy manager</b> — rule-based dispatch: PV first, surplus to storage; storage discharges at peak tariff or above the grid limit, never below reserve.</li>
@@ -337,7 +337,7 @@ export function Methodology() {
               <li>Battery wear is shown only as a storage cycle proxy and is not part of scheduling.</li>
             </ul>
           </Panel>
-          <Panel title="Provenance and future integration">
+          <Panel title="Provenance and future integration" sub="How real data and a backend will be connected" collapsible="me-prov" defaultOpen={false}>
             <div className="mb-3 flex flex-wrap gap-2"><Badge tone="warn">Simulated</Badge><Badge tone="info">Estimated</Badge><Badge tone="cyan">Forecast</Badge><Badge>Measured — none yet</Badge></div>
             <ol className="list-decimal space-y-2 pl-4 text-sm text-muted">
               <li>Implement the service interfaces in <code>src/services</code> (vehicles, sessions, battery, energy, forecasting, scheduler, faults, datasets, simulation) with Supabase queries; UI components already consume only those interfaces.</li>

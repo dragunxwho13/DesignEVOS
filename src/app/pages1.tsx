@@ -3,7 +3,7 @@ import { Search, ArrowRight, ArrowUpDown, ChevronLeft } from "lucide-react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link, navigate } from "../lib/router";
-import { Panel, Metric, Status, Badge, Segmented, Empty, Note, inputCls, cx, ButtonLink, Button, Disclosure, InfoTip, Drawer, DataState, useLoad, ProvBadge } from "../components/ui";
+import { Panel, Metric, Status, Badge, Segmented, Empty, Note, inputCls, cx, ButtonLink, Button, Disclosure, InfoTip, Drawer, DataState, useLoad, ProvBadge, Tween } from "../components/ui";
 import ConstraintEditor from "./ConstraintEditor";
 import { getBackend } from "../services";
 import { TimeChart, Donut, Legend, C } from "../components/charts";
@@ -36,12 +36,12 @@ export function Overview() {
         <div className="grid gap-8 lg:grid-cols-[1.3fr_2fr]">
           <div>
             <div className="text-xs font-medium text-muted">Fleet readiness for upcoming departures</div>
-            <div className="tnum mt-1 text-5xl font-semibold tracking-tight">{ready}<span className="text-xl text-muted"> / 20 ready</span></div>
+            <div className="tnum mt-1 text-5xl font-semibold tracking-tight"><Tween value={ready} /><span className="text-xl text-muted"> / 20 ready</span></div>
             <div className="mt-4 flex h-2.5 overflow-hidden rounded-full" role="img" aria-label={counts.map((c) => `${c.r} ${c.n}`).join(", ")}>
-              {counts.map((c) => c.n > 0 && <div key={c.r} style={{ width: `${c.n * 5}%`, background: colors[c.r], transition: "width 300ms" }} />)}
+              {counts.map((c) => c.n > 0 && <div key={c.r} style={{ width: `${c.n * 5}%`, background: colors[c.r], transition: "width 600ms cubic-bezier(0.65,0,0.35,1)" }} />)}
             </div>
             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-              {counts.map((c) => <li key={c.r} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: colors[c.r] }} />{c.r} <span className="tnum font-medium text-ink">{c.n}</span></li>)}
+              {counts.map((c) => <li key={c.r} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: colors[c.r] }} />{c.r} <span className="tnum font-medium text-ink"><Tween value={c.n} /></span></li>)}
             </ul>
           </div>
           <div className="grid grid-cols-2 gap-6 border-line sm:grid-cols-4 lg:border-l lg:pl-8">
@@ -64,13 +64,13 @@ export function Overview() {
         </Panel>
         <Panel title="Alerts" sub={`${openAlerts.length} open`} right={<Link to="/app/alerts" className="text-sm font-medium text-[#0d7584] hover:underline">All alerts</Link>}>
           <ul className="divide-y divide-line">
-            {openAlerts.slice(0, 5).map((a) => (
+            {openAlerts.slice(0, 3).map((a) => (
               <li key={a.id} className="py-3 first:pt-0"><div className="flex items-center justify-between gap-2"><Status s={a.severity} /><span className="tnum text-xs text-muted">{fmtT(a.time)}</span></div><p className="mt-1.5 text-sm font-medium">{a.asset} · {a.title}</p></li>
             ))}
             {!openAlerts.length && <Empty title="No open alerts">All alerts are acknowledged.</Empty>}
           </ul>
         </Panel>
-        <Panel title="Charging queue" sub="Next scheduled sessions" right={<Link to="/app/scheduler" className="text-sm font-medium text-[#0d7584] hover:underline">Scheduler</Link>}>
+        <Panel title="Charging queue" sub={queue.length ? `Next: ${queue[0].vehicleId} at ${fmtT(queue[0].start)} · ${queue.length} queued` : "Nothing queued"} collapsible="ov-queue" defaultOpen={false} right={<Link to="/app/scheduler" className="text-sm font-medium text-[#0d7584] hover:underline">Scheduler</Link>}>
           {queue.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -89,7 +89,7 @@ export function Overview() {
             </div>
           ) : <Empty title="Queue is empty">All requested vehicles are charging or complete.</Empty>}
         </Panel>
-        <Panel title="Recent events" sub="Simulated event log, today">
+        <Panel title="Recent events" sub={`${events.length} latest simulated events today`} collapsible="ov-events" defaultOpen={false}>
           <ol className="relative space-y-4 border-l border-line pl-4">
             {events.map((e, i) => (
               <li key={i} className="relative"><span className="absolute top-1.5 -left-[21px] h-2 w-2 rounded-full border-2 border-white bg-cyan" /><span className="tnum text-xs text-muted">{fmtT(e.t)}</span><p className="text-sm">{e.text}</p></li>
@@ -118,6 +118,7 @@ export function Fleet() {
     const val = (v: VehicleState) => (sort === "id" ? v.id : sort === "soc" ? v.soc : sort === "soh" ? v.estSoH : sort === "energy" ? v.energyRequiredKWh : v.departure);
     return r.sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * dir);
   }, [list, q, cls, st, sort, dir]);
+  const sig = `${q}|${cls}|${st}|${sort}|${dir}`;
   const th = (k: SortKey, label: string) => (
     <th className="px-4 py-3 font-medium" aria-sort={sort === k ? (dir === 1 ? "ascending" : "descending") : "none"}>
       <button className={cx("inline-flex items-center gap-1 hover:text-ink", sort === k && "text-ink")} onClick={() => (sort === k ? setDir(dir === 1 ? -1 : 1) : (setSort(k), setDir(1)))}>{label}<ArrowUpDown size={12} aria-hidden /></button>
@@ -154,8 +155,8 @@ export function Fleet() {
                   <tr>{th("id", "Vehicle")}<th className="px-4 py-3 font-medium">Class</th>{th("soc", "SoC / target")}{th("soh", "Est. SoH")}<th className="px-4 py-3 font-medium">Readiness</th><th className="px-4 py-3 font-medium">Priority</th>{th("departure", "Arrival → departure")}{th("energy", "Energy req.")}<th className="px-4 py-3 font-medium">Charger</th><th /></tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {rows.map((v) => (
-                    <tr key={v.id} className="group cursor-pointer transition-colors duration-150 hover:bg-soft" onClick={() => navigate(`/app/fleet/${v.id}`)}>
+                  {rows.map((v, i) => (
+                    <tr key={`${v.id}|${sig}`} style={{ ["--i" as string]: i }} className="row-in group cursor-pointer transition-colors duration-150 hover:bg-soft" onClick={() => navigate(`/app/fleet/${v.id}`)}>
                       <td className="px-4 py-3 font-medium"><Link to={`/app/fleet/${v.id}`} onClick={(e) => e.stopPropagation()}>{v.id}</Link></td>
                       <td className="px-4 py-3 text-muted">{v.cls}</td>
                       <td className="px-4 py-3"><SocBar v={v} /></td>
@@ -172,8 +173,8 @@ export function Fleet() {
               </table>
             </div>
             <ul className="divide-y divide-line md:hidden">
-              {rows.map((v) => (
-                <li key={v.id}><Link to={`/app/fleet/${v.id}`} className="block p-4 active:bg-soft">
+              {rows.map((v, i) => (
+                <li key={`${v.id}|${sig}`} style={{ ["--i" as string]: i }} className="row-in"><Link to={`/app/fleet/${v.id}`} className="block p-4 active:bg-soft">
                   <div className="flex items-center justify-between"><span className="font-medium">{v.id} <span className="text-xs font-normal text-muted">· {v.cls}</span></span><Status s={v.readiness} /></div>
                   <div className="mt-2"><SocBar v={v} /></div>
                   <div className="tnum mt-2 flex justify-between text-xs text-muted"><span>Departs {fmtT(v.departure)} · needs {v.requiredSoC}%</span><span>{v.session?.chargerId ?? "No charger"}</span></div>
@@ -251,17 +252,17 @@ export function VehicleDetail({ id }: { id: string }) {
             ) : <p className="text-sm text-muted">{v.note}.</p>}
             {s && <ButtonLink to={`/app/explain/${v.id}`} variant="secondary" size="sm" className="mt-4 w-full">Why this assignment?</ButtonLink>}
           </Panel>
-          <Panel title="Constraints">
+          <Panel title="Constraints" sub={s ? `${s.constraints.length} constraints applied` : "None active"} collapsible="vd-cons" defaultOpen={false}>
             {s ? <ul className="list-disc space-y-1.5 pl-4 text-sm text-muted">{s.constraints.map((c) => <li key={c}>{c}</li>)}</ul> : <p className="text-sm text-muted">No active charging constraints.</p>}
           </Panel>
         </div>
-        <Panel title="Estimated battery health" sub="12-month trend; band shows estimate uncertainty" right={v.sohFlag ? <Badge tone="warn">Flag</Badge> : <Badge tone="ok">No flag</Badge>}>
+        <Panel title="Estimated battery health" sub={`${v.estSoH}% ± ${v.sohUnc} estimated · show 12-month trend`} collapsible="vd-soh" defaultOpen={false} right={v.sohFlag ? <Badge tone="warn">Flag</Badge> : <Badge tone="ok">No flag</Badge>}>
           <TimeChart title="SoH trend" summary={`Estimated SoH ${v.estSoH}% ± ${v.sohUnc}.`} unit="%" height={190} yMax={100}
             xLabels={trend.map((p) => `M-${11 - p.m}`)} band={{ lo: trend.map((p) => p.lo), hi: trend.map((p) => p.hi), color: C.teal, label: "Uncertainty" }}
             series={[{ key: "s", label: "Estimated SoH", color: C.teal, kind: "line", values: trend.map((p) => p.value) }]} />
           {v.sohFlag && <p className="mt-3 text-sm text-[#8a5f1f]">{v.sohFlag}.</p>}
         </Panel>
-        <Panel title="Provenance">
+        <Panel title="Data sources and provenance" sub="Simulated demo fleet · estimated SoH" collapsible="vd-prov" defaultOpen={false}>
           <dl className="space-y-2 text-sm">
             {[["Vehicle record", "Simulated demo fleet"], ["SoC", "Simulated, start of window"], ["SoH", "Estimated (cycle/age heuristic)"], ["Schedule", "EVOS demo heuristic"], ["Cycles · age", `${v.cycles} · ${v.ageMonths} months`]].map(([k, val]) => (
               <div key={k} className="flex justify-between gap-4"><dt className="text-muted">{k}</dt><dd className="text-right">{val}</dd></div>
@@ -300,6 +301,12 @@ export function Scheduler() {
           {nOv > 0 && <Button size="sm" variant="ghost" onClick={() => { setA({ ...a, overrides: {} }); toast(`${nOv} vehicle override${nOv > 1 ? "s" : ""} cleared`); }}>Clear {nOv} override{nOv > 1 ? "s" : ""}</Button>}
         </div>
       </div>
+      <div className="mb-5 grid grid-cols-2 gap-x-6 gap-y-5 rounded-xl border border-line bg-white px-5 py-4 sm:grid-cols-4" aria-live="polite">
+        <Metric label="Departures met" value={`${sim.totals.onTime}/${sim.totals.requested}`} tone={sim.totals.atRisk ? "err" : "ok"} hint={sim.totals.atRisk ? `${sim.totals.atRisk} at risk` : "all on time"} />
+        <Metric label="Total lateness" value={`${sim.totals.lateMinutes} min`} />
+        <Metric label="Peak grid import" value={`${sim.totals.peakGrid.toFixed(1)} kW`} hint={`limit ${a.gridLimitKW} kW${sim.totals.exceedSteps ? ` · ▲ exceeded ${sim.totals.exceedSteps * 15} min` : ""}`} tone={sim.totals.exceedSteps ? "err" : undefined} />
+        <Metric label="Estimated cost" value={inr(sim.totals.cost)} hint="grid import, demo day" />
+      </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
         <Panel title="Charger lanes" sub={`${fmtT(NOW)}–24:00 · ${sim.sessions.length} sessions · select a bar for its rationale`} className="min-w-0">
           <div className="overflow-x-auto">
@@ -320,7 +327,7 @@ export function Scheduler() {
                         return (
                           <button key={x.vehicleId} onClick={() => setSel(x.vehicleId)} aria-pressed={sel === x.vehicleId}
                             aria-label={`${x.vehicleId} on ${c.id} ${fmtT(x.start)} to ${fmtT(x.end)}${x.late ? ", misses departure" : ""}`}
-                            className={cx("absolute inset-y-1 overflow-hidden rounded px-1.5 text-left text-[11px] font-medium transition-[box-shadow,transform] duration-150 hover:-translate-y-px",
+                            className={cx("gantt-bar absolute inset-y-1 overflow-hidden rounded px-1.5 text-left text-[11px] font-medium hover:-translate-y-px hover:shadow-md",
                               x.late ? "bg-[#f8eedd] text-[#8a5f1f] ring-1 ring-warn" : "bg-cyan/20 text-[#0d5e69] ring-1 ring-cyan/50", sel === x.vehicleId && "ring-2 ring-ink")}
                             style={{ left: pos(x.start), width: `calc(${pos(x.end)} - ${pos(x.start)})` }}>
                             <span className="block truncate">{x.late ? "▲ " : ""}{x.vehicleId}</span>
@@ -362,7 +369,7 @@ export function Scheduler() {
               </div>
             ) : <p className="text-sm text-muted">Select a session.</p>}
           </Panel>
-          <Panel title="Placement order" sub={a.strategy === "fcfs" ? "By arrival time" : a.strategy === "rule" ? "Priority, then earliest departure" : "Higher score is placed first"}>
+          <Panel title="Placement order" sub={`${a.strategy === "fcfs" ? "By arrival time" : a.strategy === "rule" ? "Priority, then earliest departure" : "Higher score is placed first"} · view all ${sim.sessions.length}`} collapsible="sc-order" defaultOpen={false}>
             <ol className="max-h-72 space-y-1 overflow-y-auto pr-1">
               {sim.sessions.map((x) => (
                 <li key={x.vehicleId}><button onClick={() => setSel(x.vehicleId)} className={cx("flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm transition-colors", sel === x.vehicleId ? "bg-soft" : "hover:bg-soft/70")}>
@@ -376,7 +383,7 @@ export function Scheduler() {
           </Panel>
         </div>
       </div>
-      <Panel className="mt-5" title="Strategy comparison" sub="All three strategies run on the same configuration, overrides and faults. Simulated preview — not an experimental result." right={<ButtonLink to="/app/experiments" size="sm" variant="secondary">Set up an experiment</ButtonLink>}>
+      <Panel className="mt-5" title="Compare scheduling strategies" sub={`Departures met — ${cmp.map((c) => `${c.short} ${c.r.totals.onTime}/${c.r.totals.requested}`).join(" · ")}. Expand for cost, peak and lateness.`} collapsible="sc-cmp" defaultOpen={false} right={<ButtonLink to="/app/experiments" size="sm" variant="secondary">Set up an experiment</ButtonLink>}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead className="text-left text-xs text-muted"><tr><th className="pb-2 font-medium">Metric</th>{cmp.map((c) => <th key={c.id} className={cx("pb-2 text-right font-medium", c.id === a.strategy && "text-ink")}>{c.short}{c.id === a.strategy && " (active)"}</th>)}</tr></thead>
@@ -390,7 +397,7 @@ export function Scheduler() {
                 ["Estimated energy cost", (t) => inr(t.cost)],
                 ["Estimated emissions", (t) => `${t.emissionsKg.toFixed(0)} kg`],
               ] as [string, (t: typeof sim.totals) => string][]).map(([l, f]) => (
-                <tr key={l}><td className="py-2.5 text-muted">{l}</td>{cmp.map((c) => <td key={c.id} className={cx("tnum py-2.5 text-right", c.id === a.strategy && "font-semibold")}>{f(c.r.totals)}</td>)}</tr>
+                <tr key={l}><td className="py-2.5 text-muted">{l}</td>{cmp.map((c) => <td key={c.id} className={cx("tnum py-2.5 text-right", c.id === a.strategy && "font-semibold")}><Tween value={f(c.r.totals)} /></td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -454,9 +461,9 @@ export function Energy() {
     <>
       <PageHeader title="Energy manager" sub="Dispatch rule: PV serves demand first, surplus charges storage; storage discharges during peak tariff or to keep grid import under the limit, never below reserve." />
       <Panel title="Source flows at selected time" sub="Diagram and metrics are read from the same 15-minute dispatch step." right={
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           <label htmlFor="en-t" className="text-xs text-muted">Time</label>
-          <input id="en-t" type="range" min={0} max={STEPS - 1} value={t} onChange={(e) => setT(Number(e.target.value))} className="w-44 accent-cyan" />
+          <input id="en-t" type="range" min={0} max={STEPS - 1} value={t} onChange={(e) => setT(Number(e.target.value))} className="min-w-0 flex-1 accent-cyan sm:w-44 sm:flex-none" />
           <span className="tnum w-12 text-sm font-semibold">{fmtT(t)}</span>
           {t >= NOW && <Badge tone="cyan">Forecast</Badge>}
         </div>}>
@@ -505,7 +512,7 @@ export function Energy() {
         </Panel>
       </div>
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Panel title="Constraint status" sub="Checked at every 15-min step for the demo day">
+        <Panel title="Constraint checks" sub={tot.exceedSteps === 0 && tot.minStorage >= sim.a.reservePct - 0.01 ? "✓ All 4 checks passed for the demo day" : "▲ A constraint was exceeded — expand for detail"} collapsible="en-cons" defaultOpen={false}>
           <ul className="space-y-2.5 text-sm">
             {[
               [tot.exceedSteps === 0, "Grid import within limit", tot.exceedSteps === 0 ? `Peak ${tot.peakGrid.toFixed(1)} kW ≤ ${sim.a.gridLimitKW} kW` : `▲ Exceeded for ${tot.exceedSteps * 15} min (peak ${tot.peakGrid.toFixed(1)} kW) — flagged`],
@@ -517,13 +524,13 @@ export function Energy() {
             ))}
           </ul>
         </Panel>
-        <Panel title="Price and carbon signals" sub="Illustrative tariff (₹/kWh) across the day; carbon intensity is a constant assumption">
+        <Panel title="Tariff and carbon signals" sub={`₹${(sim.a.tariffINR * 0.75).toFixed(2)}–₹${(sim.a.tariffINR * sim.a.peakMult).toFixed(2)}/kWh · ${sim.a.carbonG} gCO₂e/kWh`} collapsible="en-price" defaultOpen={false}>
           <TimeChart title="Tariff" summary={`Off-peak ₹${(sim.a.tariffINR * 0.75).toFixed(2)}, standard ₹${sim.a.tariffINR}, peak ₹${(sim.a.tariffINR * sim.a.peakMult).toFixed(2)} per kWh.`} unit="₹/kWh" height={150}
             xLabels={hourLabels()} series={[{ key: "p", label: "Tariff", color: C.ink, kind: "line", values: sim.flows.map((x) => sim.a.tariffINR * (x.t >= 68 && x.t < 88 ? sim.a.peakMult : x.t < 24 ? 0.75 : 1)) }]} />
           <p className="mt-2 text-xs text-muted">Grid carbon intensity: {sim.a.carbonG} gCO₂e/kWh (constant demo value; hourly data not connected).</p>
         </Panel>
       </div>
-      <div className="mt-5"><Note>Rooftop PV is {sim.a.pvKWp} kWp capacity; instantaneous output follows a modelled irradiance curve × daily weather factor × solar multiplier, capped at capacity. Storage is {sim.a.storageKWh} kWh / {sim.a.storageKW} kW with 95% charge efficiency. Values are simulated. <Link to="/app/settings" className="font-medium text-[#0d7584] underline">Edit assumptions</Link>.</Note></div>
+      <div className="mt-5"><Disclosure id="en-model" label="View energy model assumptions">Rooftop PV is {sim.a.pvKWp} kWp capacity; instantaneous output follows a modelled irradiance curve × daily weather factor × solar multiplier, capped at capacity. Storage is {sim.a.storageKWh} kWh / {sim.a.storageKW} kW with 95% charge efficiency. Values are simulated. <Link to="/app/settings" className="font-medium text-[#0d7584] underline">Edit assumptions</Link>.</Disclosure></div>
     </>
   );
 }

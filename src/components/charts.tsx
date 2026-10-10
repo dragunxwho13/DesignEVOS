@@ -5,10 +5,11 @@ export const C = { cyan: "#18B7C9", teal: "#2D9D90", grid: "#7B8A9E", storage: "
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
-  const [w, setW] = useState(600);
+  const [w, setW] = useState(320);
   useEffect(() => {
     if (!ref.current) return;
-    const ro = new ResizeObserver(([e]) => setW(Math.max(240, e.contentRect.width)));
+    setW(Math.max(240, ref.current.clientWidth));
+    const ro = new ResizeObserver(([e]) => setW(Math.max(240, Math.floor(e.contentRect.width))));
     ro.observe(ref.current);
     return () => ro.disconnect();
   }, []);
@@ -98,9 +99,9 @@ export function TimeChart({
         ))}
         {band && <span className={cx("inline-flex items-center gap-1.5 text-xs", dark ? "text-white/70" : "text-muted")}><span className="inline-block h-2 w-4 rounded-sm" style={{ background: band.color, opacity: 0.25 }} />{band.label}</span>}
       </div>
-      <div ref={ref} className="relative">
+      <div ref={ref} className="relative w-full min-w-0">
         <svg width={w} height={height} role="img" aria-label={`${title}. ${summary}`} tabIndex={0} onKeyDown={onKey}
-          onPointerMove={onMove} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)} className="block touch-pan-y">
+          onPointerMove={onMove} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)} className="chart-morph chart-reveal block touch-pan-y">
           {ticks.map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} stroke={gridC} />
@@ -132,11 +133,14 @@ export function TimeChart({
             </g>
           ))}
           {hover !== null && (
-            <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={pad.t + ih} stroke={dark ? "rgba(255,255,255,.4)" : "#9AA8B8"} />
+            <g>
+              <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={pad.t + ih} stroke={dark ? "rgba(255,255,255,.4)" : "#9AA8B8"} />
+              {stacked.map(({ s, top }) => top[hover] !== undefined && <circle key={s.key} cx={x(hover)} cy={y(top[hover]!)} r={3.5} fill={dark ? "#111C2E" : "#fff"} stroke={s.color} strokeWidth={2} />)}
+            </g>
           )}
         </svg>
         {hover !== null && (
-          <div className={cx("pointer-events-none absolute top-2 z-10 min-w-40 rounded-lg border px-3 py-2 text-xs shadow-lg fade-in", dark ? "border-white/10 bg-deep2 text-white" : "border-line bg-white")}
+          <div className={cx("pointer-events-none absolute top-2 z-10 min-w-40 rounded-lg border px-3 py-2 text-xs shadow-lg transition-[left] duration-100 ease-out", dark ? "border-white/10 bg-deep2 text-white" : "border-line bg-white")}
             style={{ left: Math.min(Math.max(x(hover) + 12, 0), w - 180) }}>
             <div className="mb-1 font-semibold">{fmtX ? fmtX(hover) : xLabels[hover]}</div>
             {series.map((s) => s.values[hover] !== undefined && (
@@ -205,8 +209,8 @@ export function Bars({ data, unit, height = 200, title, summary, highlight }: { 
   const ih = height - pad.b - pad.t;
   const bw = (w - pad.l) / data.length;
   return (
-    <div ref={ref} className="relative">
-      <svg width={w} height={height} role="img" aria-label={`${title}. ${summary}`} onPointerLeave={() => setHover(null)}>
+    <div ref={ref} className="relative w-full min-w-0">
+      <svg width={w} height={height} role="img" aria-label={`${title}. ${summary}`} onPointerLeave={() => setHover(null)} className="chart-reveal">
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
             <line x1={pad.l} x2={w} y1={pad.t + ih * (1 - f)} y2={pad.t + ih * (1 - f)} stroke="#EDF1F5" />

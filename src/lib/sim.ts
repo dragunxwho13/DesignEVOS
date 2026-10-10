@@ -284,7 +284,19 @@ export function sohTrend(v: VehicleSpec) {
   });
 }
 
+// Deterministic → safe to memoise. Small LRU keyed by the full assumption set.
+const SIM_CACHE = new Map<string, SimResult>();
 export function simulate(a: Assumptions): SimResult {
+  const key = JSON.stringify(a);
+  const hit = SIM_CACHE.get(key);
+  if (hit) { SIM_CACHE.delete(key); SIM_CACHE.set(key, hit); return hit; }
+  const r = simulateUncached(a);
+  SIM_CACHE.set(key, r);
+  if (SIM_CACHE.size > 40) SIM_CACHE.delete(SIM_CACHE.keys().next().value!);
+  return r;
+}
+
+function simulateUncached(a: Assumptions): SimResult {
   const solarMult = a.solarMult * DAY_SOLAR[a.day];
   const PVK = a.pvKWp ?? PV_KWP, SKWH = a.storageKWh ?? STORAGE_KWH, SKW = a.storageKW ?? STORAGE_KW;
   const pv = Array.from({ length: STEPS }, (_, t) => pvAt(t, solarMult, PVK));

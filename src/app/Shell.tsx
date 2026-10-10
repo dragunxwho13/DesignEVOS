@@ -43,7 +43,7 @@ function NavList({ section, onNav }: { section: string; onNav?: () => void }) {
       <li key={it.to}>
         <Link to={`/app/${it.to}`} onClick={onNav} aria-current={active ? "page" : undefined}
           className={cx("group relative flex h-9 items-center gap-3 rounded-lg px-3 text-[13.5px] transition-colors duration-150", active ? "bg-white/8 text-white" : "text-white/60 hover:bg-white/4 hover:text-white")}>
-          <span aria-hidden className={cx("absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-cyan transition-opacity duration-200", active ? "opacity-100" : "opacity-0")} />
+          {active && <span aria-hidden className={cx("absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-cyan", !onNav && "vt-nav-indicator")} />}
           <it.icon size={16} aria-hidden className={active ? "text-cyan" : ""} />
           <span className="flex-1">{it.label}</span>
           {it.to === "alerts" && open > 0 && <span className="tnum rounded bg-err/80 px-1.5 text-[11px] font-medium text-white" aria-label={`${open} open alerts`}>{open}</span>}
@@ -73,6 +73,16 @@ function NavList({ section, onNav }: { section: string; onNav?: () => void }) {
 export default function Shell({ section, children }: { section: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { toastMsg, canUndo, undo } = useStore();
+  // Keep the last message mounted briefly so the toast can animate out.
+  const [shown, setShown] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (toastMsg) { setShown(toastMsg); setLeaving(false); return; }
+    if (!shown) return;
+    setLeaving(true);
+    const id = setTimeout(() => { setShown(null); setLeaving(false); }, 200);
+    return () => clearTimeout(id);
+  }, [toastMsg]); // eslint-disable-line
   useEffect(() => { window.scrollTo(0, 0); setOpen(false); }, [section]);
   useEffect(() => {
     if (!open) return;
@@ -82,11 +92,11 @@ export default function Shell({ section, children }: { section: string; children
   }, [open]);
   return (
     <div className="min-h-screen bg-soft">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col overflow-y-auto bg-deep px-3 py-5 lg:flex">
+      <aside className="vt-sidebar fixed inset-y-0 left-0 z-30 hidden w-60 flex-col overflow-y-auto bg-deep px-3 py-5 lg:flex">
         <Link to="/app/overview" className="mb-7 px-3" aria-label="EVOS overview"><Logo dark /></Link>
         <NavList section={section} />
       </aside>
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between bg-deep px-4 lg:hidden">
+      <div className="vt-topbar sticky top-0 z-30 flex h-14 items-center justify-between bg-deep px-4 lg:hidden">
         <Link to="/app/overview" aria-label="EVOS overview"><Logo dark /></Link>
         <button className="grid h-11 w-11 place-items-center text-white" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
@@ -98,12 +108,13 @@ export default function Shell({ section, children }: { section: string; children
         </div>
       </div>
       <main className="lg:pl-60">
-        <div key={section} className="route-enter mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">{children}</div>
+        <div className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">{children}</div>
       </main>
       <div aria-live="polite" className="pointer-events-none fixed right-4 bottom-4 z-50">
-        {toastMsg && (
-          <div className="toast-in pointer-events-auto flex items-center gap-4 rounded-lg bg-deep px-4 py-3 text-sm text-white shadow-xl">
-            <span>{toastMsg}</span>
+        {shown && (
+          <div key={shown} className={cx(leaving ? "toast-out" : "toast-in", "pointer-events-auto flex items-center gap-3 rounded-lg bg-deep px-4 py-3 text-sm text-white shadow-xl")}>
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-cyan/20 text-[11px] text-cyan" aria-hidden>✓</span>
+            <span>{shown}</span>
             {canUndo && <button onClick={undo} className="rounded px-2 py-1 font-medium text-cyan hover:bg-white/10">Undo</button>}
           </div>
         )}

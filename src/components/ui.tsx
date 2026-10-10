@@ -9,10 +9,10 @@ type Variant = "primary" | "secondary" | "ghost" | "dark" | "onDark";
 const btnBase =
   "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-[background-color,color,border-color,transform,box-shadow] duration-150 ease-out active:scale-[0.98] disabled:opacity-45 disabled:pointer-events-none select-none whitespace-nowrap";
 const btnVariants: Record<Variant, string> = {
-  primary: "bg-cyan text-deep hover:bg-[#2cc8d9] shadow-[0_1px_0_rgba(255,255,255,.3)_inset]",
+  primary: "btn-lift bg-cyan text-deep hover:bg-[#2cc8d9] shadow-[0_1px_0_rgba(255,255,255,.3)_inset]",
   secondary: "border border-line bg-white text-ink hover:border-[#b8c6d6] hover:bg-soft",
   ghost: "text-muted hover:text-ink hover:bg-soft",
-  dark: "bg-deep text-white hover:bg-deep2",
+  dark: "btn-lift bg-deep text-white hover:bg-deep2",
   onDark: "border border-white/20 text-white hover:bg-white/10 hover:border-white/35",
 };
 const sizes = { sm: "h-9 px-3 text-sm", md: "h-11 px-5 text-sm", lg: "h-12 px-6 text-[15px]" };
@@ -39,7 +39,7 @@ const tones: Record<Tone, string> = {
 };
 export function Badge({ tone = "neutral", children, icon, className }: { tone?: Tone; children: ReactNode; icon?: ReactNode; className?: string }) {
   return (
-    <span className={cx("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap", tones[tone], className)}>
+    <span className={cx("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors duration-300", tones[tone], className)}>
       {icon}
       {children}
     </span>
@@ -65,19 +65,41 @@ export function Status({ s }: { s: string }) {
   return <Badge tone={statusTone[s] ?? "neutral"} icon={<span aria-hidden className="text-[9px] leading-none">{statusGlyph[s]}</span>}>{s}</Badge>;
 }
 
-export function Panel({ title, sub, right, children, className, pad = true }: { title?: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
+export function Panel({ title, sub, right, children, className, pad = true, collapsible, defaultOpen = true }: { title?: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; pad?: boolean; collapsible?: string; defaultOpen?: boolean }) {
+  const key = collapsible ? `evos-panel-${collapsible}` : "";
+  const [open, setOpen] = useState(() => {
+    if (!collapsible) return true;
+    const v = sessionStorage.getItem(key);
+    return v === null ? defaultOpen : v === "1";
+  });
+  const toggle = () => setOpen((o) => { sessionStorage.setItem(key, o ? "0" : "1"); return !o; });
+  const bodyId = collapsible ? `${key}-body` : undefined;
   return (
-    <section className={cx("rounded-xl border border-line bg-white", className)}>
+    <section className={cx("min-w-0 rounded-xl border border-line bg-white", className)}>
       {(title || right) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
-          <div>
-            {title && <h2 className="text-[15px] font-semibold text-ink">{title}</h2>}
-            {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
-          </div>
-          {right}
+        <header className={cx("flex flex-wrap items-start justify-between gap-3 px-5 pt-4", open || !collapsible ? "pb-3" : "pb-4")}>
+          {collapsible ? (
+            <button type="button" onClick={toggle} aria-expanded={open} aria-controls={bodyId} className="group -m-1 flex min-h-11 flex-1 items-start gap-2 rounded-lg p-1 text-left">
+              <ChevronDown size={16} aria-hidden className={cx("mt-0.5 shrink-0 text-muted transition-transform duration-200 ease-out group-hover:text-ink", !open && "-rotate-90")} />
+              <span>
+                {title && <span className="block text-[15px] font-semibold text-ink">{title}</span>}
+                {sub && <span className="mt-0.5 block text-xs text-muted">{sub}</span>}
+              </span>
+            </button>
+          ) : (
+            <div>
+              {title && <h2 className="text-[15px] font-semibold text-ink">{title}</h2>}
+              {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
+            </div>
+          )}
+          {(open || !collapsible) && right}
         </header>
       )}
-      <div className={cx(pad && "px-5 pb-5", !title && pad && "pt-5")}>{children}</div>
+      <div id={bodyId} className={cx(collapsible && "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]", collapsible && (open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"))}>
+        <div className={cx(collapsible && "overflow-hidden")} inert={collapsible ? !open : undefined}>
+          <div className={cx(pad && "px-5 pb-5", !title && pad && "pt-5", collapsible && "transition-[opacity,transform] duration-300 ease-out", collapsible && (open ? "opacity-100" : "-translate-y-1 opacity-0"))}>{children}</div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -86,8 +108,8 @@ export function Metric({ label, value, unit, hint, tone, large }: { label: strin
   return (
     <div>
       <div className="text-xs font-medium text-muted">{label}</div>
-      <div className={cx("tnum mt-1 font-semibold tracking-tight text-ink", large ? "text-4xl" : "text-2xl")}>
-        {value}
+      <div className={cx("tnum mt-1 -mx-1 rounded-md px-1 font-semibold tracking-tight text-ink", large ? "text-4xl" : "text-2xl")}>
+        {typeof value === "string" || typeof value === "number" ? <Tween value={value} /> : value}
         {unit && <span className="ml-1 text-sm font-medium text-muted">{unit}</span>}
       </div>
       {hint && <div className={cx("mt-1 text-xs", tone === "err" ? "text-err" : tone === "warn" ? "text-[#8a5f1f]" : tone === "ok" ? "text-ok" : "text-muted")}>{hint}</div>}
@@ -95,7 +117,11 @@ export function Metric({ label, value, unit, hint, tone, large }: { label: strin
   );
 }
 
-export function Segmented<T extends string | number>({ value, onChange, options, label, dark }: { value: T; onChange: (v: T) => void; options: { v: T; label: string }[]; label: string; dark?: boolean }) {
+export function Segmented<T extends string | number>({ value: external, onChange, options, label, dark }: { value: T; onChange: (v: T) => void; options: { v: T; label: string }[]; label: string; dark?: boolean }) {
+  // Optimistic local selection: the control responds on the next frame even if the resulting
+  // recalculation (run as a React transition) takes longer.
+  const [value, setValue] = useState(external);
+  useEffect(() => setValue(external), [external]);
   const ref = useRef<HTMLDivElement>(null);
   const [ind, setInd] = useState({ l: 0, w: 0 });
   useEffect(() => {
@@ -104,9 +130,9 @@ export function Segmented<T extends string | number>({ value, onChange, options,
   }, [value, options.length]);
   return (
     <div ref={ref} role="radiogroup" aria-label={label} className={cx("relative inline-flex max-w-full overflow-x-auto rounded-lg p-0.5", dark ? "bg-white/8" : "bg-soft border border-line")}>
-      <span aria-hidden className={cx("absolute top-0.5 bottom-0.5 rounded-md shadow-sm transition-all duration-200 ease-out", dark ? "bg-white/15" : "bg-white")} style={{ left: ind.l, width: ind.w }} />
+      <span aria-hidden className={cx("absolute top-0.5 bottom-0.5 rounded-md shadow-sm transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]", dark ? "bg-white/15" : "bg-white")} style={{ left: ind.l, width: ind.w }} />
       {options.map((o) => (
-        <button key={String(o.v)} role="radio" aria-checked={o.v === value} onClick={() => onChange(o.v)}
+        <button key={String(o.v)} role="radio" aria-checked={o.v === value} onClick={() => { setValue(o.v); setTimeout(() => onChange(o.v), 0); }}
           className={cx("relative z-10 h-8 shrink-0 rounded-md px-3 text-xs font-medium whitespace-nowrap transition-colors duration-150", o.v === value ? (dark ? "text-white" : "text-ink") : (dark ? "text-white/60 hover:text-white" : "text-muted hover:text-ink"))}>
           {o.label}
         </button>
@@ -116,15 +142,30 @@ export function Segmented<T extends string | number>({ value, onChange, options,
 }
 
 export function Tabs<T extends string>({ value, onChange, tabs }: { value: T; onChange: (v: T) => void; tabs: { v: T; label: string }[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [ind, setInd] = useState({ l: 0, w: 0 });
+  useEffect(() => {
+    const el = ref.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (el) setInd({ l: el.offsetLeft + 8, w: el.offsetWidth - 16 });
+  }, [value, tabs.length]);
+  const onKey = (e: React.KeyboardEvent) => {
+    const i = tabs.findIndex((t) => t.v === value);
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      const n = tabs[(i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+      onChange(n.v);
+      requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus());
+    }
+  };
   return (
-    <div role="tablist" className="flex gap-1 border-b border-line overflow-x-auto">
+    <div ref={ref} role="tablist" onKeyDown={onKey} className="relative flex gap-1 overflow-x-auto border-b border-line">
       {tabs.map((t) => (
-        <button key={t.v} role="tab" aria-selected={t.v === value} onClick={() => onChange(t.v)}
-          className={cx("relative h-10 px-3 text-sm font-medium whitespace-nowrap transition-colors duration-150", t.v === value ? "text-ink" : "text-muted hover:text-ink")}>
+        <button key={t.v} role="tab" aria-selected={t.v === value} tabIndex={t.v === value ? 0 : -1} onClick={() => onChange(t.v)}
+          className={cx("relative h-11 shrink-0 px-3 text-sm font-medium whitespace-nowrap transition-colors duration-200", t.v === value ? "text-ink" : "text-muted hover:text-ink")}>
           {t.label}
-          <span aria-hidden className={cx("absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-cyan transition-transform duration-200 ease-out origin-center", t.v === value ? "scale-x-100" : "scale-x-0")} />
         </button>
       ))}
+      <span aria-hidden className="absolute -bottom-px h-0.5 rounded-full bg-cyan transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ left: ind.l, width: ind.w }} />
     </div>
   );
 }
@@ -209,9 +250,9 @@ export function Disclosure({ id, label, children, defaultOpen = false, className
         {label}
         <ChevronDown size={16} aria-hidden className={cx("shrink-0 text-muted transition-transform duration-200 ease-out", open && "rotate-180")} />
       </button>
-      <div id={`${key}-p`} role="region" aria-label={label} className={cx("grid transition-[grid-template-rows] duration-220 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+      <div id={`${key}-p`} role="region" aria-label={label} className={cx("grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
         <div className="overflow-hidden" inert={!open}>
-          <div className="border-t border-line px-4 py-3 text-sm leading-relaxed text-muted">{children}</div>
+          <div className={cx("border-t border-line px-4 py-3 text-sm leading-relaxed text-muted transition-[opacity,transform] duration-300 ease-out", open ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0")}>{children}</div>
         </div>
       </div>
     </div>
@@ -236,7 +277,7 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
       <button type="button" aria-label={`About ${label}`} aria-expanded={open} onClick={() => setOpen(!open)}
         className="grid h-6 w-6 place-items-center rounded-full text-muted transition-colors hover:bg-soft hover:text-ink"><Info size={13} /></button>
       {open && (
-        <span role="dialog" aria-label={label} className="fade-in absolute top-7 left-1/2 z-30 w-64 -translate-x-1/2 rounded-lg border border-line bg-white p-3 text-left text-xs leading-relaxed font-normal text-muted shadow-lg">
+        <span role="dialog" aria-label={label} className="pop-in absolute top-7 left-1/2 z-30 w-64 -translate-x-1/2 rounded-lg border border-line bg-white p-3 text-left text-xs leading-relaxed font-normal text-muted shadow-lg">
           <span className="mb-1 block font-semibold text-ink">{label}</span>{children}
         </span>
       )}
@@ -340,4 +381,50 @@ export function Drawer({ open, onClose, title, children }: { open: boolean; onCl
 
 export function Spinner({ label }: { label: string }) {
   return <span role="status" className="inline-flex items-center gap-2 text-sm text-muted"><Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden />{label}</span>;
+}
+
+
+/**
+ * Tween — animates every number inside a string (e.g. "₹2,713", "13/14", "45%") from its previous
+ * value to the new one, and briefly highlights the value so users see what changed.
+ */
+const NUM = /-?\d[\d,]*\.?\d*/g;
+export function Tween({ value, duration = 600 }: { value: string | number; duration?: number }) {
+  const str = String(value);
+  const [shown, setShown] = useState(str);
+  const [flash, setFlash] = useState(0);
+  const prev = useRef(str);
+  const first = useRef(true);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = str;
+    if (first.current) { first.current = false; setShown(str); return; }
+    if (from === str) return;
+    if (/\d:\d\d/.test(str)) { setShown(str); setFlash((f) => f + 1); return; }
+    setFlash((f) => f + 1);
+    const a = from.match(NUM) ?? [], b = str.match(NUM) ?? [];
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || a.length !== b.length || !b.length) { setShown(str); return; }
+    const parse = (x: string) => Number(x.replace(/,/g, ""));
+    const dec = b.map((x) => (x.split(".")[1] ?? "").length);
+    const commas = b.map((x) => x.includes(","));
+    const start = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const e = 1 - Math.pow(1 - t, 3);
+      let i = 0;
+      setShown(str.replace(NUM, () => {
+        const v = parse(a[i]) + (parse(b[i]) - parse(a[i])) * e;
+        const out = commas[i] ? v.toLocaleString("en-IN", { minimumFractionDigits: dec[i], maximumFractionDigits: dec[i] }) : v.toFixed(dec[i]);
+        i++;
+        return out;
+      }));
+      if (t < 1) raf = requestAnimationFrame(step);
+      else setShown(str);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [str, duration]);
+  return <span key={flash} className={cx("rounded", flash > 0 && "flash")}>{shown}</span>;
 }

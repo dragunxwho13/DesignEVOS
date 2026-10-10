@@ -31,7 +31,7 @@ export default function AppRoutes({ path }: { path: string }) {
   const render = PAGES[section || "overview"];
   return (
     <Shell section={section || "overview"}>
-      <div key={path}>
+      <div key={path} className="stagger">
         {render ? render(param) : (
           <>
             <PageHeader title="Page not found" sub={`There is no EVOS page at “${path}”.`} />

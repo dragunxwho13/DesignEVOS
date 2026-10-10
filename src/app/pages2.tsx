@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link, navigate } from "../lib/router";
-import { Panel, Metric, Status, Badge, Segmented, Note, cx, Button, ButtonLink, Empty, Disclosure, InfoTip, ProvBadge } from "../components/ui";
+import { Panel, Metric, Status, Badge, Segmented, Note, cx, Button, ButtonLink, Empty, Disclosure, InfoTip, ProvBadge, Tween } from "../components/ui";
 import { ALGORITHM_VERSION, FORECAST_MODEL_VERSION } from "../services";
 import { TimeChart, Donut, Legend, Bars, C } from "../components/charts";
 import { ScoreBars } from "./pages1";
@@ -63,7 +63,7 @@ export function Battery() {
             <Panel title="Fleet summary">
               <div className="grid grid-cols-2 gap-5"><Metric label="Average est. SoH" value={`${avg.toFixed(1)}%`} /><Metric label="Flagged" value={flagged.length} hint="of 20 vehicles" tone={flagged.length ? "warn" : undefined} /></div>
             </Panel>
-            <Panel title="Ageing indicators">
+            <Panel title="Ageing indicators used" sub="4 inputs · expand for list" collapsible="bh-ind" defaultOpen={false}>
               <ul className="space-y-1.5 text-sm text-muted"><li>Equivalent full cycles</li><li>Calendar age</li><li>Share of DC fast charging</li><li>Data volume → uncertainty width</li></ul>
             </Panel>
           </div>
@@ -168,7 +168,7 @@ export function Sustainability() {
           </div>
         </Panel>
       </div>
-      <Panel className="mt-5" title="Outcomes by scheduling strategy" sub="Same demo day, configuration and faults. Simulated preview — awaiting experiments for real comparison.">
+      <Panel className="mt-5" title="See additional metrics by scheduling strategy" sub="10 metrics for FCFS, rule-based and EVOS · simulated preview, awaiting experiments" collapsible="sus-cmp" defaultOpen={false}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] text-sm">
             <thead className="text-left text-xs text-muted"><tr><th className="pb-2 font-medium">Metric</th><th className="pb-2 font-medium">Basis</th>{cmp.map((c) => <th key={c.id} className={cx("pb-2 text-right font-medium", c.id === a.strategy && "text-ink")}>{c.short}</th>)}</tr></thead>
@@ -185,7 +185,7 @@ export function Sustainability() {
                 ["Departure-SoC success", "vehicles", (x) => `${x.onTime}/${x.requested}`],
                 ["Unserved by departure", "kWh", (x) => x.unservedKWh.toFixed(1)],
               ] as [string, string, (x: typeof sim.totals) => string][]).map(([l, b, f]) => (
-                <tr key={l}><td className="py-2.5">{l}</td><td className="py-2.5 text-xs text-muted">{b}</td>{cmp.map((c) => <td key={c.id} className={cx("tnum py-2.5 text-right", c.id === a.strategy && "font-semibold")}>{f(c.r.totals)}</td>)}</tr>
+                <tr key={l}><td className="py-2.5">{l}</td><td className="py-2.5 text-xs text-muted">{b}</td>{cmp.map((c) => <td key={c.id} className={cx("tnum py-2.5 text-right", c.id === a.strategy && "font-semibold")}><Tween value={f(c.r.totals)} /></td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -193,7 +193,7 @@ export function Sustainability() {
         <Disclosure id="sus-wear" label="How battery-wear cost is estimated" className="mt-4">Proxy = stationary-battery throughput × ₹2.5/kWh + DC-charged energy × ₹0.6/kWh. Illustrative, uncalibrated coefficients; shown only to make the trade-off visible.</Disclosure>
       </Panel>
       <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <Panel title="Assumptions">
+        <Panel title="Assumptions" sub={`${a.carbonG} gCO₂e/kWh · grid-only baseline · INR`} collapsible="sus-ass" defaultOpen={false}>
           <dl className="space-y-2 text-sm">
             {[["Grid carbon intensity", `${a.carbonG} g CO₂e/kWh (illustrative, constant)`], ["PV & storage emissions", "0 at point of use (lifecycle excluded)"], ["Baseline", "All site demand met by grid import"], ["Weather factors", "Fixed per demo day"], ["Currency", "INR, illustrative tariff"]].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4"><dt className="text-muted">{k}</dt><dd className="text-right">{v}</dd></div>
@@ -202,7 +202,7 @@ export function Sustainability() {
           <Link to="/app/settings" className="mt-4 inline-block text-sm font-medium text-[#0d7584] hover:underline">Edit assumptions</Link>
         </Panel>
         <div className="space-y-3">
-          <Disclosure id="sus-calc" label="View sustainability calculation methodology" defaultOpen>Estimated emissions = grid import (kWh) × carbon intensity (g/kWh) ÷ 1000. Baseline = total demand (kWh) × the same intensity. The difference reflects PV and storage use in this simulated scenario only; it is not a measured saving.</Disclosure>
+          <Disclosure id="sus-calc" label="View sustainability calculation methodology">Estimated emissions = grid import (kWh) × carbon intensity (g/kWh) ÷ 1000. Baseline = total demand (kWh) × the same intensity. The difference reflects PV and storage use in this simulated scenario only; it is not a measured saving.</Disclosure>
           <Disclosure id="sus-ren" label="How renewable use affects the result">Every kWh served by PV directly or by PV-charged storage displaces a kWh of grid import, reducing estimated emissions by the carbon intensity. Shifting charging into sunny hours raises the solar share; overcast demo days (e.g. Wed, solar ×0.55) lower it.</Disclosure>
           <Disclosure id="sus-src" label="Explore data sources">Grid carbon intensity: constant demo value — Grid Carbon-Intensity dataset not connected. Tariff: illustrative. PV: simulated from configured capacity. See <a href="#/app/datasets" className="font-medium text-[#0d7584] underline">Datasets & Sources</a>.</Disclosure>
         </div>
@@ -261,8 +261,8 @@ export function Explain({ id }: { id?: string }) {
               ))}
             </dl>
           </Panel>
-          <Panel title="Hard constraints applied"><ul className="space-y-2 text-sm">{s.constraints.map((c) => <li key={c} className="flex gap-2"><span className="text-ok">✓</span>{c}</li>)}</ul></Panel>
-          <Panel title="Alternatives considered">
+          <Panel title="Hard constraints applied" sub={`${s.constraints.length} checked · all satisfied`} collapsible="ex-cons" defaultOpen={false}><ul className="space-y-2 text-sm">{s.constraints.map((c) => <li key={c} className="flex gap-2"><span className="text-ok">✓</span>{c}</li>)}</ul></Panel>
+          <Panel title="Alternatives considered" sub={s.alternatives.length ? `${s.alternatives.length} other charger option(s)` : "No other compatible charger"} collapsible="ex-alt" defaultOpen={false}>
             {s.alternatives.length ? (
               <table className="w-full text-sm"><thead className="text-left text-xs text-muted"><tr><th className="pb-2 font-medium">Charger</th><th className="pb-2 font-medium">Window</th><th className="pb-2 font-medium">Why not selected</th></tr></thead>
                 <tbody className="divide-y divide-line">{s.alternatives.map((alt) => <tr key={alt.chargerId}><td className="py-2 font-medium">{alt.chargerId}</td><td className="tnum">{fmtT(alt.start)}–{fmtT(alt.end)}</td><td className="text-muted">{alt.note}</td></tr>)}</tbody></table>
@@ -270,8 +270,8 @@ export function Explain({ id }: { id?: string }) {
           </Panel>
         </div>
         <div className="space-y-5">
-          <Panel title="Prioritisation factors" sub={sim.a.strategy === "evos" ? `Rank #${s.rank} of ${sim.sessions.length}` : `Score shown for reference — ${STRATEGIES.find((x) => x.id === sim.a.strategy)!.short} orders by ${sim.a.strategy === "fcfs" ? "arrival" : "priority then deadline"}`}><ScoreBars s={s.score} /></Panel>
-          <Panel title="Decision record">
+          <Panel collapsible="ex-score" defaultOpen={false} title="Prioritisation factors" sub={sim.a.strategy === "evos" ? `Rank #${s.rank} of ${sim.sessions.length}` : `Score shown for reference — ${STRATEGIES.find((x) => x.id === sim.a.strategy)!.short} orders by ${sim.a.strategy === "fcfs" ? "arrival" : "priority then deadline"}`}><ScoreBars s={s.score} /></Panel>
+          <Panel title="Decision record" sub={`${decisionId} · ${ALGORITHM_VERSION}`} collapsible="ex-rec" defaultOpen={false}>
             <dl className="space-y-2 text-sm">
               {[["Decision ID", decisionId], ["Timestamp", `Demo day ${fmtT(NOW)}`], ["Algorithm", `${ALGORITHM_VERSION} · ${STRATEGIES.find((x) => x.id === sim.a.strategy)!.short}`], ["Fallback", s.late ? "Flag for operator; accept lower SoC or reprioritise" : s.delayedByCap ? "Delayed start to respect site cap" : "None needed"], ["Manual override", override ? Object.entries(override).map(([k, v]) => `${k}: ${k === "departureStep" ? fmtT(v as number) : v}`).join(", ") : "None"]].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4"><dt className="text-muted">{k}</dt><dd className="tnum text-right font-medium break-all">{v}</dd></div>
@@ -279,8 +279,8 @@ export function Explain({ id }: { id?: string }) {
             </dl>
             <div className="mt-3 flex flex-wrap gap-1.5"><ProvBadge p="simulated" /><Badge>SoC: simulated</Badge><Badge>SoH: estimated</Badge><Badge>PV: forecast</Badge><Badge>Tariff: illustrative</Badge></div>
           </Panel>
-          <Note title="Limitations">Greedy heuristic: vehicles are placed one at a time in priority order and earlier placements are not revisited, so the result is reasonable but not guaranteed optimal. Battery wear is not part of the score in this version.</Note>
-          <Panel title="Decision log" pad={false}>
+          <Disclosure id="ex-lim" label="Limitations of this decision logic">Greedy heuristic: vehicles are placed one at a time in priority order and earlier placements are not revisited, so the result is reasonable but not guaranteed optimal. Battery wear is not part of the score in this version.</Disclosure>
+          <Panel title="Decision log" sub={`${sim.sessions.length} decisions · view all`} pad={false} collapsible="ex-log" defaultOpen={false}>
             <ul className="max-h-72 divide-y divide-line overflow-y-auto">
               {sim.sessions.map((x) => (
                 <li key={x.vehicleId}><Link to={`/app/explain/${x.vehicleId}`} className={cx("flex items-center justify-between px-5 py-2.5 text-sm hover:bg-soft", x.vehicleId === s.vehicleId && "bg-soft")}>

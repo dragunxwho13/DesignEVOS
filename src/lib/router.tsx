@@ -1,4 +1,7 @@
 import { useEffect, useState, type AnchorHTMLAttributes } from "react";
+import { flushSync } from "react-dom";
+
+export const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function current() {
   const h = window.location.hash.replace(/^#/, "");
@@ -8,7 +11,14 @@ function current() {
 export function useRoute() {
   const [path, setPath] = useState(current);
   useEffect(() => {
-    const on = () => setPath(current());
+    const on = () => {
+      const next = current();
+      // Cross-fade between routes with the View Transitions API where supported; persistent chrome
+      // (sidebar, header, active-nav indicator) is named in CSS so it morphs instead of fading.
+      const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+      if (doc.startViewTransition && !prefersReducedMotion()) doc.startViewTransition(() => flushSync(() => setPath(next)));
+      else setPath(next);
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);

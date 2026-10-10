@@ -29,6 +29,58 @@ export function Logo({ dark }: { dark?: boolean }) {
   );
 }
 
+const DEMO_MENU = [
+  { group: "Operate", items: [["Overview dashboard", "/app/overview", "Readiness, energy and alerts at a glance"], ["Charging scheduler", "/app/scheduler", "Compare FCFS, rule-based and EVOS"], ["Energy manager", "/app/energy", "Solar, storage and grid flows"]] },
+  { group: "Analyse", items: [["Battery health", "/app/battery", "Estimated SoH with uncertainty"], ["Sustainability", "/app/sustainability", "Estimated emissions vs baseline"], ["Explainability", "/app/explain", "Why each decision was made"]] },
+  { group: "Data & method", items: [["Datasets & sources", "/app/datasets", "What is connected, and importing"], ["Methodology", "/app/methodology", "Models, assumptions, limitations"]] },
+] as { group: string; items: [string, string, string][] }[];
+
+function DemoMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setOpen(false); ref.current?.querySelector<HTMLButtonElement>("button")?.focus(); }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const links = [...(ref.current?.querySelectorAll<HTMLAnchorElement>("[role=menuitem]") ?? [])];
+        const i = links.indexOf(document.activeElement as HTMLAnchorElement);
+        e.preventDefault();
+        links[(i + (e.key === "ArrowDown" ? 1 : -1) + links.length) % links.length]?.focus();
+      }
+    };
+    document.addEventListener("mousedown", off);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", off); document.removeEventListener("keydown", key); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}
+        className={cx("inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors duration-150 hover:text-white", open ? "text-white" : "text-white/65")}>
+        Explore the demo
+        <ChevronRight size={14} aria-hidden className={cx("transition-transform duration-200", open ? "-rotate-90" : "rotate-90")} />
+      </button>
+      <div role="menu" aria-label="Explore the demo"
+        className={cx("absolute top-full right-0 mt-2 w-[560px] origin-top-right rounded-xl border border-line bg-white p-2 shadow-[0_24px_48px_-16px_rgba(11,18,32,.35)] transition-[opacity,transform] duration-180 ease-out",
+          open ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0")}>
+        <div className="grid grid-cols-3 gap-1">
+          {DEMO_MENU.map((g) => (
+            <div key={g.group} className="p-2">
+              <p className="mb-1.5 px-2 text-[11px] font-medium tracking-wider text-muted uppercase">{g.group}</p>
+              <ul>{g.items.map(([l, to, d]) => (
+                <li key={to}><Link role="menuitem" tabIndex={open ? 0 : -1} to={to} onClick={() => setOpen(false)} className="block rounded-lg px-2 py-2 transition-colors duration-150 hover:bg-soft focus-visible:bg-soft">
+                  <span className="block text-sm font-medium text-ink">{l}</span><span className="block text-xs leading-snug text-muted">{d}</span>
+                </Link></li>
+              ))}</ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -70,15 +122,23 @@ function Header() {
             </button>
           ))}
         </nav>
-        <div className="hidden md:block"><ButtonLink to="/app/overview" size="sm">Explore the framework</ButtonLink></div>
+        <div className="hidden items-center gap-2 md:flex"><div className="hidden lg:block"><DemoMenu /></div><ButtonLink to="/app/overview" size="sm">Explore the framework</ButtonLink></div>
         <button className="grid h-11 w-11 place-items-center rounded-lg text-white md:hidden" aria-expanded={open} aria-controls="mnav" aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen(!open)}>
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
       <div ref={bar} aria-hidden className={cx("absolute inset-x-0 bottom-0 h-px origin-left bg-cyan/70 transition-opacity duration-200", scrolled ? "opacity-100" : "opacity-0")} style={{ transform: "scaleX(0)" }} />
-      <div id="mnav" className={cx("overflow-hidden transition-[max-height,opacity] duration-250 ease-out md:hidden", open ? "max-h-96 opacity-100" : "max-h-0 opacity-0")}>
+      <div id="mnav" className={cx("overflow-hidden transition-[max-height,opacity] duration-250 ease-out md:hidden", open ? "max-h-[80vh] overflow-y-auto opacity-100" : "max-h-0 opacity-0")}>
         <nav aria-label="Mobile" className="flex flex-col gap-1 px-5 pb-5">
           {NAV.map((n) => <button key={n.id} tabIndex={open ? 0 : -1} onClick={() => go(n.id)} className="h-11 rounded-lg px-3 text-left text-white/80 hover:bg-white/5">{n.label}</button>)}
+          <details className="group rounded-lg">
+            <summary className="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg px-3 text-white/80 hover:bg-white/5">
+              Explore the demo <ChevronRight size={15} aria-hidden className="transition-transform duration-200 group-open:rotate-90" />
+            </summary>
+            <ul className="pb-2 pl-3">{DEMO_MENU.flatMap((g) => g.items).map(([l, to]) => (
+              <li key={to}><Link to={to} tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className="flex h-10 items-center rounded-lg px-3 text-sm text-white/65 hover:bg-white/5 hover:text-white">{l}</Link></li>
+            ))}</ul>
+          </details>
           <ButtonLink to="/app/overview" className="mt-2">Explore the framework</ButtonLink>
         </nav>
       </div>
@@ -104,7 +164,7 @@ function Hero() {
   }, []);
   return (
     <section id="overview" tabIndex={-1} className="relative isolate flex min-h-[92vh] items-end overflow-hidden bg-deep outline-none">
-      <img ref={img} src={HERO_IMG} srcSet={`${HERO_IMG.replace("w=1600", "w=800")} 800w, ${HERO_IMG} 1600w`} sizes="100vw" width={1600} height={1622} fetchPriority="high" decoding="async" alt="Electric vehicle connected to a charging station at night" className="absolute inset-0 -z-10 h-[115%] w-full object-cover object-[70%_center] opacity-70" />
+      <img ref={img} src={HERO_IMG} srcSet={`${HERO_IMG.replace("w=1600", "w=800")} 800w, ${HERO_IMG} 1600w`} sizes="100vw" width={1600} height={1622} fetchPriority="high" decoding="async" alt="Electric vehicle connected to a charging station at night" className="hero-img absolute inset-0 -z-10 h-[115%] w-full object-cover object-[70%_center] opacity-70" />
       <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#0B1220_8%,rgba(11,18,32,.88)_40%,rgba(11,18,32,.25)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-deep to-transparent" />
       <div className="mx-auto w-full max-w-[1200px] px-5 pt-32 pb-20 md:px-8 md:pb-28">
@@ -282,7 +342,7 @@ function Capabilities() {
           </ul>
           <div className="relative overflow-hidden rounded-2xl bg-deep p-6 text-white md:p-8" role="tabpanel" aria-label={c.t}>
             <div className="flex items-center justify-between"><span className="text-sm font-medium text-white/80">{c.t}</span><SimBadge dark /></div>
-            <div key={i} className="fade-in mt-6 min-h-[260px]"><CapPreview i={i} /></div>
+            <div key={i} className="pop-in mt-6 min-h-[260px]"><CapPreview i={i} /></div>
             <Link to={c.to} className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-cyan hover:underline">Open in the demo <ArrowRight size={14} /></Link>
             <span className="sr-only">{sim.totals.requested} sessions scheduled.</span>
           </div>
