@@ -3,10 +3,12 @@ import { Search, ArrowRight, ArrowUpDown, ChevronLeft } from "lucide-react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link, navigate } from "../lib/router";
-import { Panel, Metric, Status, Badge, Segmented, Empty, Note, inputCls, cx, ButtonLink } from "../components/ui";
+import { Panel, Metric, Status, Badge, Segmented, Empty, Note, inputCls, cx, ButtonLink, Button, Disclosure, InfoTip, Drawer, DataState, useLoad, ProvBadge } from "../components/ui";
+import ConstraintEditor from "./ConstraintEditor";
+import { getBackend } from "../services";
 import { TimeChart, Donut, Legend, C } from "../components/charts";
 import EnergySchematic from "../components/EnergySchematic";
-import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, type Readiness, type VehicleState } from "../lib/sim";
+import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, STRATEGIES, compareStrategies, type Readiness, type VehicleState, type Strategy } from "../lib/sim";
 
 const hourLabels = (from = 0) => Array.from({ length: STEPS - from }, (_, i) => fmtT(i + from));
 
@@ -99,21 +101,23 @@ export function Overview() {
   );
 }
 
-type SortKey = "id" | "soc" | "departure" | "soh";
+type SortKey = "id" | "soc" | "departure" | "soh" | "energy";
 export function Fleet() {
-  const { sim } = useStore();
+  const { a } = useStore();
+  const state = useLoad(() => getBackend().vehicles.list(a), [a], (d) => d.length === 0);
+  const list = state.status === "ready" ? state.data : [];
   const [q, setQ] = useState("");
   const [cls, setCls] = useState("All");
   const [st, setSt] = useState("All");
   const [sort, setSort] = useState<SortKey>("departure");
   const [dir, setDir] = useState<1 | -1>(1);
   const rows = useMemo(() => {
-    const r = sim.vehicles.filter((v) =>
+    const r = list.filter((v) =>
       (cls === "All" || v.cls === cls) && (st === "All" || v.readiness === st) &&
       (q === "" || `${v.id} ${v.cls} ${v.session?.chargerId ?? ""}`.toLowerCase().includes(q.toLowerCase())));
-    const val = (v: VehicleState) => (sort === "id" ? v.id : sort === "soc" ? v.soc : sort === "soh" ? v.estSoH : v.departure);
+    const val = (v: VehicleState) => (sort === "id" ? v.id : sort === "soc" ? v.soc : sort === "soh" ? v.estSoH : sort === "energy" ? v.energyRequiredKWh : v.departure);
     return r.sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * dir);
-  }, [sim, q, cls, st, sort, dir]);
+  }, [list, q, cls, st, sort, dir]);
   const th = (k: SortKey, label: string) => (
     <th className="px-4 py-3 font-medium" aria-sort={sort === k ? (dir === 1 ? "ascending" : "descending") : "none"}>
       <button className={cx("inline-flex items-center gap-1 hover:text-ink", sort === k && "text-ink")} onClick={() => (sort === k ? setDir(dir === 1 ? -1 : 1) : (setSort(k), setDir(1)))}>{label}<ArrowUpDown size={12} aria-hidden /></button>
@@ -121,7 +125,7 @@ export function Fleet() {
   );
   return (
     <>
-      <PageHeader title="Fleet" sub="20 simulated vehicles: 6 shuttle buses, 4 service vans and 10 utility carts. Select a vehicle for detail." />
+      <PageHeader title="Fleet" sub={`${list.length || 20} simulated campus vehicles: 6 shuttle buses, 4 service vans and 10 utility carts. Select a vehicle for detail.`} right={<ProvBadge p="simulated" />} />
       <Panel pad={false}>
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
           <div className="relative min-w-56 flex-1">
@@ -131,22 +135,23 @@ export function Fleet() {
           </div>
           <label className="sr-only" htmlFor="fleet-cls">Class</label>
           <select id="fleet-cls" value={cls} onChange={(e) => setCls(e.target.value)} className={cx(inputCls, "w-auto")}>
-            {["All", "Shuttle bus", "Service van", "Utility cart"].map((c) => <option key={c}>{c}</option>)}
+            {["All", "Shuttle bus", "Service van", "Utility cart"].map((c) => <option key={c} value={c}>{c === "All" ? "All classes" : c}</option>)}
           </select>
           <label className="sr-only" htmlFor="fleet-st">Readiness</label>
           <select id="fleet-st" value={st} onChange={(e) => setSt(e.target.value)} className={cx(inputCls, "w-auto")}>
-            {["All", "Ready", "Charging", "Scheduled", "At risk", "Idle", "Unavailable"].map((c) => <option key={c}>{c}</option>)}
+            {["All", "Ready", "Charging", "Scheduled", "At risk", "Idle", "Unavailable"].map((c) => <option key={c} value={c}>{c === "All" ? "All statuses" : c}</option>)}
           </select>
-          <span className="tnum text-xs text-muted" aria-live="polite">{rows.length} of 20</span>
+          <span className="tnum text-xs text-muted" aria-live="polite">{rows.length} of {list.length}{(q || cls !== "All" || st !== "All") && " · filtered"}</span>
+          {(q || cls !== "All" || st !== "All") && <Button size="sm" variant="ghost" onClick={() => { setQ(""); setCls("All"); setSt("All"); }}>Clear filters</Button>}
         </div>
-        {rows.length === 0 ? (
+        {state.status !== "ready" ? <DataState state={state} emptyTitle="No vehicles loaded">{() => null}</DataState> : rows.length === 0 ? (
           <div className="p-6"><Empty title="No matching vehicles">Try a different search or <button className="font-medium text-[#0d7584] underline" onClick={() => { setQ(""); setCls("All"); setSt("All"); }}>clear filters</button>.</Empty></div>
         ) : (
           <>
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead className="bg-soft/60 text-left text-xs text-muted">
-                  <tr>{th("id", "Vehicle")}<th className="px-4 py-3 font-medium">Class</th>{th("soc", "SoC")}{th("soh", "Est. SoH")}<th className="px-4 py-3 font-medium">Readiness</th>{th("departure", "Departure need")}<th className="px-4 py-3 font-medium">Charger</th><th /></tr>
+                  <tr>{th("id", "Vehicle")}<th className="px-4 py-3 font-medium">Class</th>{th("soc", "SoC / target")}{th("soh", "Est. SoH")}<th className="px-4 py-3 font-medium">Readiness</th><th className="px-4 py-3 font-medium">Priority</th>{th("departure", "Arrival → departure")}{th("energy", "Energy req.")}<th className="px-4 py-3 font-medium">Charger</th><th /></tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {rows.map((v) => (
@@ -156,7 +161,9 @@ export function Fleet() {
                       <td className="px-4 py-3"><SocBar v={v} /></td>
                       <td className="tnum px-4 py-3">{v.estSoH}% <span className="text-xs text-muted">± {v.sohUnc}</span></td>
                       <td className="px-4 py-3"><Status s={v.readiness} /></td>
-                      <td className="tnum px-4 py-3">{fmtT(v.departure)} · {v.requiredSoC}%</td>
+                      <td className="px-4 py-3 text-xs">{v.priority === "Normal" ? <span className="text-muted">Normal</span> : <Badge tone={v.priority === "High" ? "info" : "neutral"}>{v.priority}</Badge>}</td>
+                      <td className="tnum px-4 py-3">{fmtT(v.arrival)} → {fmtT(v.departure)} <span className="text-xs text-muted">· {v.requiredSoC}%</span></td>
+                      <td className="tnum px-4 py-3">{v.energyRequiredKWh ? `${v.energyRequiredKWh.toFixed(1)} kWh` : <span className="text-muted">—</span>}</td>
                       <td className="tnum px-4 py-3">{v.session?.chargerId ?? <span className="text-muted">—</span>}</td>
                       <td className="px-4 py-3 text-right"><ArrowRight size={15} className="inline text-muted opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></td>
                     </tr>
@@ -194,7 +201,8 @@ function SocBar({ v }: { v: VehicleState }) {
 }
 
 export function VehicleDetail({ id }: { id: string }) {
-  const { sim } = useStore();
+  const { sim, alerts } = useStore();
+  const [edit, setEdit] = useState(false);
   const v = sim.vehicles.find((x) => x.id === id);
   if (!v) return (<><PageHeader title="Vehicle not found" sub={`No vehicle with ID “${id}” exists in the demo fleet.`} /><ButtonLink to="/app/fleet" variant="secondary">Back to fleet</ButtonLink></>);
   const s = v.session;
@@ -208,7 +216,14 @@ export function VehicleDetail({ id }: { id: string }) {
   return (
     <>
       <Link to="/app/fleet" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"><ChevronLeft size={16} />Fleet</Link>
-      <PageHeader title={v.id} sub={`${v.cls} · ${v.capKWh} kWh battery · accepts up to ${v.maxKW} kW${v.dcOnly ? " (DC only)" : v.acOnly ? " (AC only)" : ""}`} right={<Status s={v.readiness} />} />
+      <PageHeader title={v.id} sub={`${v.cls} · ${v.capKWh} kWh battery · accepts up to ${v.maxKW} kW${v.dcOnly ? " (DC only)" : v.acOnly ? " (AC only)" : ""}`} right={<div className="flex items-center gap-2"><Status s={v.readiness} /><Button size="sm" variant="secondary" onClick={() => setEdit(true)}>Edit constraints</Button></div>} />
+      {alerts.filter((x) => x.asset === v.id).map((x) => (
+        <div key={x.id} role="status" className={cx("mb-4 flex items-start gap-3 rounded-lg px-4 py-3 text-sm", x.severity === "Critical" ? "bg-[#f6e3e2]" : "bg-[#f8eedd]")}>
+          <Status s={x.severity} /><span><b className="font-medium">{x.title}.</b> <span className="text-muted">{x.detail}</span></span>
+        </div>
+      ))}
+      {v.dataIssue && <p className="mb-4 rounded-lg bg-[#f8eedd] px-4 py-3 text-sm text-[#8a5f1f]">◆ Data quality: {v.dataIssue}</p>}
+      <Drawer open={edit} onClose={() => setEdit(false)} title={`Constraints · ${v.id}`}><ConstraintEditor vehicleId={v.id} onDone={() => setEdit(false)} /></Drawer>
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <Panel title="Charging timeline" sub="Simulated SoC across the demo day. Solid = plan before now; dashed = projected.">
           <TimeChart title={`${v.id} SoC timeline`} summary={`From ${v.soc}% to projected ${v.projectedSoC}% by departure at ${fmtT(v.departure)}.`} unit="%" yMax={100} height={240}
@@ -259,8 +274,12 @@ export function VehicleDetail({ id }: { id: string }) {
 }
 
 export function Scheduler() {
-  const { sim } = useStore();
+  const { sim, a, change, setA, toast } = useStore();
   const [sel, setSel] = useState<string | null>(sim.sessions[0]?.vehicleId ?? null);
+  const [edit, setEdit] = useState<string | null>(null);
+  const cmp = useMemo(() => compareStrategies(a), [a]);
+  const strat = STRATEGIES.find((x) => x.id === a.strategy)!;
+  const nOv = Object.keys(a.overrides).length;
   const span = STEPS - NOW;
   const pos = (t: number) => `${((t - NOW) / span) * 100}%`;
   const hours = Array.from({ length: 15 }, (_, i) => NOW + i * 4);
@@ -269,9 +288,20 @@ export function Scheduler() {
   const loadSeries = sim.flows.slice(NOW);
   return (
     <>
-      <PageHeader title="Charging scheduler" sub="Deterministic priority heuristic: vehicles are ranked by urgency, then placed on the compatible charger with the earliest finish within the site power cap. Not an industrial optimiser." />
+      <PageHeader title="Charging scheduler" sub="Assign requested vehicles to chargers. Choose a strategy, adjust vehicle constraints and see how the schedule, energy and cost respond." right={
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented label="Scheduling strategy" value={a.strategy} onChange={(v: Strategy) => change({ ...a, strategy: v }, `Strategy set to ${STRATEGIES.find((x) => x.id === v)!.short} — all views updated`)} options={STRATEGIES.map((x) => ({ v: x.id, label: x.short }))} />
+          <Button size="sm" variant="secondary" onClick={() => setEdit(sel ?? sim.sessions[0]?.vehicleId ?? "BUS-01")}>Edit vehicle constraints</Button>
+        </div>} />
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line bg-white px-5 py-3.5 text-sm">
+        <p className="max-w-3xl text-muted"><b className="font-semibold text-ink">{strat.label}.</b> {strat.desc}</p>
+        <div className="flex items-center gap-2">
+          <ProvBadge p="simulated" />
+          {nOv > 0 && <Button size="sm" variant="ghost" onClick={() => { setA({ ...a, overrides: {} }); toast(`${nOv} vehicle override${nOv > 1 ? "s" : ""} cleared`); }}>Clear {nOv} override{nOv > 1 ? "s" : ""}</Button>}
+        </div>
+      </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
-        <Panel title="Charger lanes" sub={`${fmtT(NOW)}–24:00 · ${sim.sessions.length} sessions · select a bar for its rationale`}>
+        <Panel title="Charger lanes" sub={`${fmtT(NOW)}–24:00 · ${sim.sessions.length} sessions · select a bar for its rationale`} className="min-w-0">
           <div className="overflow-x-auto">
             <div className="min-w-[640px]">
               <div className="relative ml-20 h-6 text-[10.5px] text-muted">
@@ -324,16 +354,19 @@ export function Scheduler() {
               <div key={s.vehicleId} className="fade-in space-y-4 text-sm">
                 <div className="flex items-center justify-between"><span className="text-base font-semibold">{s.vehicleId}</span><Badge tone={s.late ? "warn" : "info"}>Rank #{s.rank}</Badge></div>
                 <p className="leading-relaxed text-muted">{s.rationale}</p>
-                <ScoreBars s={s.score} />
-                <ButtonLink to={`/app/explain/${s.vehicleId}`} variant="secondary" size="sm" className="w-full">Full decision detail</ButtonLink>
+                <Disclosure id="sched-score" label="Show scoring breakdown"><ScoreBars s={s.score} /></Disclosure>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setEdit(s.vehicleId)}>Edit constraints</Button>
+                  <ButtonLink to={`/app/explain/${s.vehicleId}`} variant="secondary" size="sm">Decision detail</ButtonLink>
+                </div>
               </div>
             ) : <p className="text-sm text-muted">Select a session.</p>}
           </Panel>
-          <Panel title="Priority order" sub="Higher score is scheduled first">
+          <Panel title="Placement order" sub={a.strategy === "fcfs" ? "By arrival time" : a.strategy === "rule" ? "Priority, then earliest departure" : "Higher score is placed first"}>
             <ol className="max-h-72 space-y-1 overflow-y-auto pr-1">
               {sim.sessions.map((x) => (
                 <li key={x.vehicleId}><button onClick={() => setSel(x.vehicleId)} className={cx("flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm transition-colors", sel === x.vehicleId ? "bg-soft" : "hover:bg-soft/70")}>
-                  <span className="tnum w-6 text-xs text-muted">{x.rank}</span><span className="flex-1 font-medium">{x.vehicleId}</span><span className="tnum text-xs text-muted">{x.priority}</span>{x.late && <span className="text-xs text-warn" aria-label="at risk">▲</span>}
+                  <span className="tnum w-6 text-xs text-muted">{x.rank}</span><span className="flex-1 font-medium">{x.vehicleId}{a.overrides[x.vehicleId] && <span className="ml-1.5 text-[10px] font-normal text-[#0d7584]">edited</span>}</span><span className="tnum text-xs text-muted">{x.priority}</span>{x.late && <span className="text-xs text-warn" aria-label="at risk">▲</span>}
                 </button></li>
               ))}
             </ol>
@@ -343,12 +376,54 @@ export function Scheduler() {
           </Panel>
         </div>
       </div>
+      <Panel className="mt-5" title="Strategy comparison" sub="All three strategies run on the same configuration, overrides and faults. Simulated preview — not an experimental result." right={<ButtonLink to="/app/experiments" size="sm" variant="secondary">Set up an experiment</ButtonLink>}>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead className="text-left text-xs text-muted"><tr><th className="pb-2 font-medium">Metric</th>{cmp.map((c) => <th key={c.id} className={cx("pb-2 text-right font-medium", c.id === a.strategy && "text-ink")}>{c.short}{c.id === a.strategy && " (active)"}</th>)}</tr></thead>
+            <tbody className="divide-y divide-line">
+              {([
+                ["Departures met", (t) => `${t.onTime}/${t.requested}`],
+                ["Total lateness", (t) => `${t.lateMinutes} min`],
+                ["Energy not delivered by departure", (t) => `${t.unservedKWh.toFixed(1)} kWh`],
+                ["Peak grid import", (t) => `${t.peakGrid.toFixed(1)} kW`],
+                ["Minutes above grid limit", (t) => `${t.exceedSteps * 15}`],
+                ["Estimated energy cost", (t) => inr(t.cost)],
+                ["Estimated emissions", (t) => `${t.emissionsKg.toFixed(0)} kg`],
+              ] as [string, (t: typeof sim.totals) => string][]).map(([l, f]) => (
+                <tr key={l}><td className="py-2.5 text-muted">{l}</td>{cmp.map((c) => <td key={c.id} className={cx("tnum py-2.5 text-right", c.id === a.strategy && "font-semibold")}>{f(c.r.totals)}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Disclosure id="sched-cmp-note" label="How to read this comparison" className="mt-4">FCFS charges at full power with no site cap, so it can finish sooner but may exceed the grid limit. Rule-based and EVOS respect the cap and may delay starts. Differences come from this deterministic demo model on one demo day; they are not evidence that any strategy performs better in practice.</Disclosure>
+      </Panel>
+      <Drawer open={!!edit} onClose={() => setEdit(null)} title="Vehicle constraints">
+        {edit && (
+          <div className="space-y-5">
+            <Field2 value={edit} onChange={setEdit} />
+            <ConstraintEditor vehicleId={edit} onDone={() => setEdit(null)} />
+          </div>
+        )}
+      </Drawer>
     </>
+  );
+}
+
+function Field2({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { sim } = useStore();
+  return (
+    <div>
+      <label htmlFor="ce-v" className="text-sm font-medium">Vehicle</label>
+      <select id="ce-v" value={value} onChange={(e) => onChange(e.target.value)} className={cx(inputCls, "mt-1.5")}>
+        {sim.vehicles.map((v) => <option key={v.id} value={v.id}>{v.id} · {v.cls} · {v.readiness}</option>)}
+      </select>
+    </div>
   );
 }
 
 export function ScoreBars({ s }: { s: { urgency: number; deficit: number; slack: number; classWeight: number; total: number } }) {
   const rows = [["Urgency", s.urgency, 0.45, "energy needed ÷ time to departure"], ["SoC deficit", s.deficit, 0.2, "gap to required SoC"], ["Low slack", s.slack, 0.2, "little spare time"], ["Service class", s.classWeight, 0.15, "bus > van > cart"]] as const;
+  const pr = (s as { priority?: number }).priority ?? 0;
   return (
     <div className="space-y-2.5">
       {rows.map(([l, v, w, d]) => (
@@ -358,14 +433,21 @@ export function ScoreBars({ s }: { s: { urgency: number; deficit: number; slack:
           <div className="mt-0.5 text-[11px] text-muted">{d}</div>
         </div>
       ))}
+      {pr !== 0 && <div className="flex justify-between text-xs"><span className="font-medium">Operator priority override</span><span className="tnum text-muted">{pr > 0 ? "+" : ""}{Math.round(pr * 100)} pts</span></div>}
       <div className="flex justify-between border-t border-line pt-2 text-sm font-semibold"><span>Priority score</span><span className="tnum">{Math.round(s.total * 100)}</span></div>
     </div>
   );
 }
 
+const RANGES = { day: [0, STEPS], am: [24, 52], pm: [48, 72], eve: [68, STEPS] } as const;
 export function Energy() {
   const { sim } = useStore();
   const [t, setT] = useState(52);
+  const [range, setRange] = useState<keyof typeof RANGES>("day");
+  const [r0, r1] = RANGES[range];
+  const fl = sim.flows.slice(r0, r1);
+  const rangeKWh = (k: "pvToLoad" | "storageToLoad" | "grid") => fl.reduce((m, x) => m + x[k] * 0.25, 0);
+  const rangeCost = fl.reduce((m, x) => m + x.grid * 0.25 * sim.a.tariffINR * (x.t >= 68 && x.t < 88 ? sim.a.peakMult : x.t < 24 ? 0.75 : 1), 0);
   const f = sim.flows[t];
   const tot = sim.totals;
   return (
@@ -392,15 +474,21 @@ export function Energy() {
         </div>
       </Panel>
       <div className="mt-5 grid gap-5 xl:grid-cols-[2fr_1fr]">
-        <Panel title="Supply by source vs grid limit" sub="kW · 15-min steps · after the marker values are forecast">
+        <Panel title="Supply by source vs grid limit" sub="Which source meets demand, and is the grid limit respected? kW, 15-min steps." right={
+          <Segmented label="Time range" value={range} onChange={setRange} options={[{ v: "day", label: "Full day" }, { v: "am", label: "06–13" }, { v: "pm", label: "12–18" }, { v: "eve", label: "17–24" }]} />}>
           <TimeChart title="Supply by source" summary={`Peak grid import ${tot.peakGrid.toFixed(1)} kW vs ${sim.a.gridLimitKW} kW limit.`} unit="kW" height={260}
-            xLabels={hourLabels()} marker={{ x: NOW, label: "Now" }} refLines={[{ y: sim.a.gridLimitKW, label: `Grid limit ${sim.a.gridLimitKW} kW`, color: C.err }]}
+            xLabels={fl.map((x) => fmtT(x.t))} marker={NOW > r0 && NOW < r1 ? { x: NOW - r0, label: "Now · forecast →" } : undefined} refLines={[{ y: sim.a.gridLimitKW, label: `Grid limit ${sim.a.gridLimitKW} kW`, color: C.err }]}
             series={[
-              { key: "pv", label: "PV to load", color: C.teal, kind: "area", stack: true, values: sim.flows.map((x) => x.pvToLoad) },
-              { key: "st", label: "Storage", color: C.storage, kind: "area", stack: true, values: sim.flows.map((x) => x.storageToLoad) },
-              { key: "gr", label: "Grid", color: "#AEB9C7", kind: "area", stack: true, values: sim.flows.map((x) => x.grid) },
-              { key: "pvt", label: "Total PV output", color: C.warn, kind: "dashed", values: sim.flows.map((x) => x.pv) },
+              { key: "pv", label: "PV to load", color: C.teal, kind: "area", stack: true, values: fl.map((x) => x.pvToLoad) },
+              { key: "st", label: "Storage", color: C.storage, kind: "area", stack: true, values: fl.map((x) => x.storageToLoad) },
+              { key: "gr", label: "Grid", color: "#AEB9C7", kind: "area", stack: true, values: fl.map((x) => x.grid) },
+              { key: "pvt", label: "Total PV output", color: C.warn, kind: "dashed", values: fl.map((x) => x.pv) },
             ]} />
+          <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm sm:grid-cols-4">
+            {[["PV to load", `${rangeKWh("pvToLoad").toFixed(0)} kWh`], ["Storage", `${rangeKWh("storageToLoad").toFixed(0)} kWh`], ["Grid import", `${rangeKWh("grid").toFixed(0)} kWh`], ["Est. grid cost", inr(rangeCost)]].map(([k, v]) => (
+              <div key={k}><dt className="text-xs text-muted">{k} (range)</dt><dd className="tnum mt-0.5 font-semibold">{v}</dd></div>
+            ))}
+          </dl>
         </Panel>
         <Panel title="Day totals" sub="Demo day, kWh">
           <div className="flex items-center gap-6">
@@ -414,6 +502,25 @@ export function Energy() {
               xLabels={hourLabels()} refLines={[{ y: sim.a.reservePct, label: `Reserve ${sim.a.reservePct}%`, color: C.warn }]}
               series={[{ key: "s", label: "Storage SoC", color: C.storage, kind: "line", values: sim.flows.map((x) => x.storageSoC) }]} />
           </div>
+        </Panel>
+      </div>
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <Panel title="Constraint status" sub="Checked at every 15-min step for the demo day">
+          <ul className="space-y-2.5 text-sm">
+            {[
+              [tot.exceedSteps === 0, "Grid import within limit", tot.exceedSteps === 0 ? `Peak ${tot.peakGrid.toFixed(1)} kW ≤ ${sim.a.gridLimitKW} kW` : `▲ Exceeded for ${tot.exceedSteps * 15} min (peak ${tot.peakGrid.toFixed(1)} kW) — flagged`],
+              [tot.minStorage >= sim.a.reservePct - 0.01, "Storage respects reserve", `Minimum ${tot.minStorage.toFixed(0)}% vs ${sim.a.reservePct}% reserve`],
+              [true, "PV ≤ installed capacity", `Peak ${Math.max(...sim.flows.map((x) => x.pv)).toFixed(1)} kW of ${sim.a.pvKWp} kWp`],
+              [true, "Energy balance", "PV + storage + grid = demand at every step"],
+            ].map(([ok, l, d]) => (
+              <li key={String(l)} className="flex items-start gap-3"><span aria-hidden className={ok ? "text-ok" : "text-err"}>{ok ? "✓" : "▲"}</span><span><b className="font-medium">{l}</b> <span className="sr-only">{ok ? "passed" : "failed"}</span><span className="block text-xs text-muted">{d}</span></span></li>
+            ))}
+          </ul>
+        </Panel>
+        <Panel title="Price and carbon signals" sub="Illustrative tariff (₹/kWh) across the day; carbon intensity is a constant assumption">
+          <TimeChart title="Tariff" summary={`Off-peak ₹${(sim.a.tariffINR * 0.75).toFixed(2)}, standard ₹${sim.a.tariffINR}, peak ₹${(sim.a.tariffINR * sim.a.peakMult).toFixed(2)} per kWh.`} unit="₹/kWh" height={150}
+            xLabels={hourLabels()} series={[{ key: "p", label: "Tariff", color: C.ink, kind: "line", values: sim.flows.map((x) => sim.a.tariffINR * (x.t >= 68 && x.t < 88 ? sim.a.peakMult : x.t < 24 ? 0.75 : 1)) }]} />
+          <p className="mt-2 text-xs text-muted">Grid carbon intensity: {sim.a.carbonG} gCO₂e/kWh (constant demo value; hourly data not connected).</p>
         </Panel>
       </div>
       <div className="mt-5"><Note>Rooftop PV is {sim.a.pvKWp} kWp capacity; instantaneous output follows a modelled irradiance curve × daily weather factor × solar multiplier, capped at capacity. Storage is {sim.a.storageKWh} kWh / {sim.a.storageKW} kW with 95% charge efficiency. Values are simulated. <Link to="/app/settings" className="font-medium text-[#0d7584] underline">Edit assumptions</Link>.</Note></div>

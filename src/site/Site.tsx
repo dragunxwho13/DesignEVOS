@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Menu, X, Clock, PlugZap, Gauge, BatteryMedium, CalendarClock, Zap, Activity, Leaf, ScanSearch, ChevronRight } from "lucide-react";
 import { Button, ButtonLink, SimBadge, cx, useRevealAll, Status } from "../components/ui";
 import { Donut, Legend, TimeChart, C } from "../components/charts";
@@ -32,11 +32,23 @@ export function Logo({ dark }: { dark?: boolean }) {
 function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState("overview");
+  const bar = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 40);
+    let raf = 0;
+    const on = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 40);
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        if (bar.current) bar.current.style.transform = `scaleX(${max > 0 ? window.scrollY / max : 0})`;
+      });
+    };
     on();
     window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && setActive(e.target.id)), { rootMargin: "-45% 0px -50% 0px" });
+    NAV.forEach((n) => { const el = document.getElementById(n.id); if (el) io.observe(el); });
+    return () => { window.removeEventListener("scroll", on); io.disconnect(); cancelAnimationFrame(raf); };
   }, []);
   useEffect(() => {
     if (!open) return;
@@ -51,7 +63,11 @@ function Header() {
         <button onClick={() => go("overview")} aria-label="EVOS home"><Logo dark /></button>
         <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
           {NAV.map((n) => (
-            <button key={n.id} onClick={() => go(n.id)} className="rounded-md px-3 py-2 text-sm text-white/70 transition-colors duration-150 hover:text-white">{n.label}</button>
+            <button key={n.id} onClick={() => go(n.id)} aria-current={active === n.id ? "true" : undefined}
+              className={cx("relative rounded-md px-3 py-2 text-sm transition-colors duration-150 hover:text-white", active === n.id ? "text-white" : "text-white/65")}>
+              {n.label}
+              <span aria-hidden className={cx("absolute inset-x-3 -bottom-0.5 h-px bg-cyan transition-[opacity,transform] duration-250 ease-out", active === n.id ? "scale-x-100 opacity-100" : "scale-x-50 opacity-0")} />
+            </button>
           ))}
         </nav>
         <div className="hidden md:block"><ButtonLink to="/app/overview" size="sm">Explore the framework</ButtonLink></div>
@@ -59,6 +75,7 @@ function Header() {
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
+      <div ref={bar} aria-hidden className={cx("absolute inset-x-0 bottom-0 h-px origin-left bg-cyan/70 transition-opacity duration-200", scrolled ? "opacity-100" : "opacity-0")} style={{ transform: "scaleX(0)" }} />
       <div id="mnav" className={cx("overflow-hidden transition-[max-height,opacity] duration-250 ease-out md:hidden", open ? "max-h-96 opacity-100" : "max-h-0 opacity-0")}>
         <nav aria-label="Mobile" className="flex flex-col gap-1 px-5 pb-5">
           {NAV.map((n) => <button key={n.id} tabIndex={open ? 0 : -1} onClick={() => go(n.id)} className="h-11 rounded-lg px-3 text-left text-white/80 hover:bg-white/5">{n.label}</button>)}
@@ -77,16 +94,17 @@ function H2({ children, dark, className }: { children: React.ReactNode; dark?: b
 }
 
 function Hero() {
-  const [y, setY] = useState(0);
+  const img = useRef<HTMLImageElement>(null);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.innerWidth < 768) return;
-    const on = () => setY(Math.min(window.scrollY, 800));
+    let raf = 0;
+    const on = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { if (img.current && window.scrollY < 900) img.current.style.transform = `translate3d(0,${window.scrollY * 0.12}px,0)`; }); };
     window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
+    return () => { window.removeEventListener("scroll", on); cancelAnimationFrame(raf); };
   }, []);
   return (
     <section id="overview" tabIndex={-1} className="relative isolate flex min-h-[92vh] items-end overflow-hidden bg-deep outline-none">
-      <img src={HERO_IMG} alt="Electric vehicle connected to a charging station at night" className="absolute inset-0 -z-10 h-[115%] w-full object-cover object-[70%_center] opacity-70" style={{ transform: `translate3d(0,${y * 0.12}px,0)` }} />
+      <img ref={img} src={HERO_IMG} srcSet={`${HERO_IMG.replace("w=1600", "w=800")} 800w, ${HERO_IMG} 1600w`} sizes="100vw" width={1600} height={1622} fetchPriority="high" decoding="async" alt="Electric vehicle connected to a charging station at night" className="absolute inset-0 -z-10 h-[115%] w-full object-cover object-[70%_center] opacity-70" />
       <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#0B1220_8%,rgba(11,18,32,.88)_40%,rgba(11,18,32,.25)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-deep to-transparent" />
       <div className="mx-auto w-full max-w-[1200px] px-5 pt-32 pb-20 md:px-8 md:pb-28">
@@ -104,7 +122,7 @@ function Hero() {
           </div>
         </div>
         <dl className="reveal mt-16 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/10 pt-6" style={{ ["--d" as string]: 4 }}>
-          {[["20", "simulated vehicles"], ["6", "chargers · DC & AC"], ["100 kWp", "rooftop PV modelled"]].map(([v, l]) => (
+          {[["20", "simulated vehicles"], ["6", "chargers · DC & AC"], ["100 kWp", "rooftop PV · reference case"]].map(([v, l]) => (
             <div key={l}><dt className="sr-only">{l}</dt><dd className="tnum text-xl font-semibold text-white md:text-2xl">{v}</dd><dd className="mt-1 text-xs text-white/55">{l}</dd></div>
           ))}
         </dl>
@@ -363,6 +381,18 @@ function HowItWorks() {
             </li>
           ))}
         </ol>
+        <details className="reveal group mt-8 rounded-xl border border-white/10 open:bg-white/[0.03]">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-5 text-sm font-medium text-white/85 hover:text-white">
+            View the technical method behind each step
+            <ChevronRight size={16} aria-hidden className="text-cyan transition-transform duration-200 group-open:rotate-90" />
+          </summary>
+          <ol className="grid gap-5 px-5 pb-5 text-sm leading-relaxed text-white/60 md:grid-cols-2">
+            <li><b className="text-white">Model.</b> 15-minute timesteps over a demo day; vehicles, chargers, PV, storage and grid limit come from an editable configuration.</li>
+            <li><b className="text-white">Evaluate.</b> Three strategies — first-come-first-served, rule-based earliest-deadline and the EVOS weighted heuristic — place sessions on compatible chargers within a site power cap.</li>
+            <li><b className="text-white">Inspect.</b> A rule-based dispatch serves demand from PV, then storage (above reserve), then grid; cost and emissions are calculated from tariff and carbon-intensity assumptions.</li>
+            <li><b className="text-white">Compare.</b> Deterministic: identical inputs give identical outputs, so scenario differences reflect only the changed assumptions.</li>
+          </ol>
+        </details>
       </div>
     </section>
   );
@@ -375,7 +405,7 @@ function Sustainability() {
     <section id="sustainability" tabIndex={-1} className="bg-white py-24 outline-none md:py-32">
       <div className="mx-auto grid max-w-[1200px] gap-14 px-5 md:px-8 lg:grid-cols-2 lg:items-center lg:gap-20">
         <div className="reveal relative order-2 lg:order-1">
-          <img src={SOLAR_IMG} alt="Rows of rooftop solar panels" className="aspect-[4/3] w-full rounded-2xl object-cover" loading="lazy" />
+          <img src={SOLAR_IMG} srcSet={`${SOLAR_IMG.replace("w=1400", "w=700")} 700w, ${SOLAR_IMG} 1400w`} sizes="(min-width:1024px) 560px, 100vw" width={1400} height={1050} alt="Rows of rooftop solar panels" className="aspect-[4/3] w-full rounded-2xl bg-soft object-cover" loading="lazy" decoding="async" />
           <div className="absolute right-4 bottom-4 left-4 rounded-xl border border-white/60 bg-white/95 p-5 backdrop-blur md:right-auto md:left-6 md:bottom-6 md:w-80">
             <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted">Demo day, estimated</span><SimBadge label="Simulated" /></div>
             <div className="mt-3 grid grid-cols-2 gap-4">
@@ -507,11 +537,10 @@ export function Footer() {
           <Logo dark />
           <p className="mt-3 text-xs leading-relaxed">Electric Vehicles Operations and Sustainability. A research framework demo — all fleet, energy and cost values shown are illustrative simulations, not measurements from a real deployment.</p>
         </div>
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
-          {NAV.map((n) => <button key={n.id} onClick={() => scrollToId(n.id)} className="hover:text-white">{n.label}</button>)}
-          <Link to="/app/overview" className="hover:text-white">Demo</Link>
-          <Link to="/app/methodology" className="hover:text-white">Methodology</Link>
-          <Link to="/app/settings" className="hover:text-white">Assumptions & data sources</Link>
+        <nav aria-label="Footer" className="grid grid-cols-2 gap-x-12 gap-y-6 sm:grid-cols-3">
+          <div><p className="mb-2 text-xs font-medium tracking-wider text-white/35 uppercase">Explore</p><ul className="space-y-1.5">{NAV.map((n) => <li key={n.id}><button onClick={() => scrollToId(n.id)} className="hover:text-white">{n.label}</button></li>)}</ul></div>
+          <div><p className="mb-2 text-xs font-medium tracking-wider text-white/35 uppercase">Product demo</p><ul className="space-y-1.5"><li><Link to="/app/overview" className="hover:text-white">Open the demo</Link></li><li><Link to="/app/scheduler" className="hover:text-white">Scheduler</Link></li><li><Link to="/app/experiments" className="hover:text-white">Experiments</Link></li></ul></div>
+          <div><p className="mb-2 text-xs font-medium tracking-wider text-white/35 uppercase">Transparency</p><ul className="space-y-1.5"><li><Link to="/app/methodology" className="hover:text-white">Methodology</Link></li><li><Link to="/app/datasets" className="hover:text-white">Datasets & sources</Link></li><li><Link to="/app/settings" className="hover:text-white">Assumptions</Link></li></ul></div>
         </nav>
       </div>
       <p className="mx-auto mt-8 max-w-[1200px] px-5 text-xs text-white/35 md:px-8">Photography via Unsplash.</p>

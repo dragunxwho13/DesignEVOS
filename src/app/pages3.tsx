@@ -192,9 +192,9 @@ export function Alerts() {
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
           <Segmented label="Status" value={state} onChange={setState} options={[{ v: "open", label: "Open" }, { v: "ack", label: "Acknowledged" }, { v: "all", label: "All" }]} />
           <label htmlFor="al-sev" className="sr-only">Severity</label>
-          <select id="al-sev" value={sev} onChange={(e) => setSev(e.target.value)} className={cx(inputCls, "w-auto")}>{["All", "Critical", "Warning", "Info"].map((x) => <option key={x}>{x}</option>)}</select>
+          <select id="al-sev" value={sev} onChange={(e) => setSev(e.target.value)} className={cx(inputCls, "w-auto")}>{["All", "Critical", "Warning", "Info"].map((x) => <option key={x} value={x}>{x === "All" ? "All severities" : x}</option>)}</select>
           <label htmlFor="al-cat" className="sr-only">Category</label>
-          <select id="al-cat" value={cat} onChange={(e) => setCat(e.target.value)} className={cx(inputCls, "w-auto")}>{["All", "Fleet", "Charging", "Energy", "Battery"].map((x) => <option key={x}>{x}</option>)}</select>
+          <select id="al-cat" value={cat} onChange={(e) => setCat(e.target.value)} className={cx(inputCls, "w-auto")}>{["All", "Fleet", "Charging", "Energy", "Battery"].map((x) => <option key={x} value={x}>{x === "All" ? "All categories" : x}</option>)}</select>
           <span className="tnum text-xs text-muted" aria-live="polite">{rows.length} shown</span>
         </div>
         {rows.length ? (
@@ -217,7 +217,7 @@ export function Alerts() {
   );
 }
 
-type Num = "reservePct" | "gridLimitKW" | "solarMult" | "tariffINR" | "peakMult" | "carbonG" | "requesting" | "storageStartPct";
+type Num = "reservePct" | "gridLimitKW" | "solarMult" | "tariffINR" | "peakMult" | "carbonG" | "requesting" | "storageStartPct" | "pvKWp" | "storageKWh" | "storageKW";
 const LIMITS: Record<Num, [number, number, string, string]> = {
   requesting: [0, 19, "vehicles", "Vehicles requesting charge"],
   reservePct: [0, 80, "%", "Storage reserve"],
@@ -227,9 +227,12 @@ const LIMITS: Record<Num, [number, number, string, string]> = {
   tariffINR: [1, 40, "₹/kWh", "Standard energy price"],
   peakMult: [1, 3, "×", "Peak tariff multiplier (17:00–22:00)"],
   carbonG: [0, 1500, "g CO₂e/kWh", "Grid carbon intensity"],
+  pvKWp: [0, 500, "kWp", "Rooftop PV capacity"],
+  storageKWh: [10, 500, "kWh", "Stationary battery capacity"],
+  storageKW: [5, 250, "kW", "Stationary battery power"],
 };
 export function Settings() {
-  const { a, setA, toast } = useStore();
+  const { a, change, resetAll } = useStore();
   const [d, setD] = useState<Record<string, string>>(() => Object.fromEntries(Object.keys(LIMITS).map((k) => [k, String(a[k as Num])])));
   const [day, setDay] = useState(a.day);
   const [fault, setFault] = useState(a.chargerFault);
@@ -248,14 +251,17 @@ export function Settings() {
     if (!valid) return;
     const next = { ...a, day, chargerFault: fault } as Assumptions;
     (Object.keys(LIMITS) as Num[]).forEach((k) => ((next as unknown as Record<string, number>)[k] = Number(d[k])));
-    setA(next);
-    toast("Assumptions saved — all screens updated");
+    change(next, "Configuration saved — all screens updated");
   };
-  const restore = () => { setA(DEFAULTS); toast("Illustrative defaults restored"); };
-  const groups: [string, Num[]][] = [["Fleet & charging", ["requesting"]], ["Energy assets", ["reservePct", "storageStartPct", "gridLimitKW", "solarMult"]], ["Tariff", ["tariffINR", "peakMult"]], ["Emissions", ["carbonG"]]];
+  const restore = () => change({ ...DEFAULTS, overrides: a.overrides, faults: a.faults, strategy: a.strategy }, "Illustrative defaults restored");
+  const exportCfg = () => {
+    const blob = new Blob([JSON.stringify({ kind: "evos-simulation-config", version: 1, exportedAt: new Date().toISOString(), provenance: "illustrative", config: a }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob); const el = document.createElement("a"); el.href = url; el.download = "evos-config.json"; el.click(); URL.revokeObjectURL(url);
+  };
+  const groups: [string, Num[]][] = [["Fleet & charging", ["requesting"]], ["Energy assets", ["pvKWp", "solarMult", "storageKWh", "storageKW", "reservePct", "storageStartPct", "gridLimitKW"]], ["Tariff", ["tariffINR", "peakMult"]], ["Emissions", ["carbonG"]]];
   return (
     <>
-      <PageHeader title="Settings and assumptions" sub="Editable demo assumptions. Saving re-runs the simulation, so dashboards, scheduler, energy, sustainability and alerts update together." />
+      <PageHeader title="Simulation configuration" sub="Illustrative assumptions for the EVOS reference campus — not verified measurements. Saving re-runs the simulation so every view updates together; each run is linked to this configuration." />
       <form onSubmit={(e) => { e.preventDefault(); save(); }} noValidate className="grid gap-5 lg:grid-cols-2">
         {groups.map(([g, ks]) => (
           <Panel key={g} title={g}>
@@ -287,10 +293,13 @@ export function Settings() {
         </Panel>
         <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
           <Button type="submit" disabled={!valid}>Save assumptions</Button>
-          <Button type="button" variant="secondary" onClick={restore}>Restore defaults</Button>
+          <Button type="button" variant="secondary" onClick={restore}>Restore default values</Button>
+          <Button type="button" variant="ghost" onClick={exportCfg}>Export configuration (JSON)</Button>
+          <Button type="button" variant="ghost" className="text-err hover:bg-[#f6e3e2] hover:text-err" onClick={resetAll}>Reset entire simulation</Button>
           {!valid && <span role="status" className="text-sm text-err">Fix {Object.keys(errs).length} field{Object.keys(errs).length > 1 ? "s" : ""} to save.</span>}
         </div>
       </form>
+      <p className="mt-2 text-xs text-muted">“Reset entire simulation” also clears vehicle overrides, injected faults and strategy. Every change can be undone from the confirmation message.</p>
       <div className="mt-5"><Note title="Fixed demo assets">20 vehicles; chargers DC-1/DC-2 30 kW and AC-1–AC-4 7.4 kW. Peak 17:00–22:00, off-peak 00:00–06:00 at 0.75× standard.</Note></div>
     </>
   );
@@ -312,7 +321,7 @@ export function Methodology() {
           </Panel>
           <Panel title="Algorithms">
             <ol className="list-decimal space-y-2.5 pl-4 text-sm text-muted">
-              <li><b className="text-ink">Scheduler</b> — weighted priority score (urgency 0.45, SoC deficit 0.2, low slack 0.2, service class 0.15); greedy placement on the compatible charger with earliest finish, delayed when the site power cap would be exceeded.</li>
+              <li><b className="text-ink">Scheduler strategies</b> — FCFS (arrival order, full power, no site cap); rule-based (High priority first, then earliest departure); EVOS: weighted priority score (urgency 0.45, SoC deficit 0.2, low slack 0.2, service class 0.15); greedy placement on the compatible charger with earliest finish, delayed when the site power cap would be exceeded.</li>
               <li><b className="text-ink">Energy manager</b> — rule-based dispatch: PV first, surplus to storage; storage discharges at peak tariff or above the grid limit, never below reserve.</li>
               <li><b className="text-ink">Forecasting</b> — profile-based expectation with bounds that widen with lead time.</li>
               <li><b className="text-ink">Battery health</b> — linear heuristic on cycles, age and fast-charge share, with an uncertainty band.</li>
@@ -331,6 +340,7 @@ export function Methodology() {
           <Panel title="Provenance and future integration">
             <div className="mb-3 flex flex-wrap gap-2"><Badge tone="warn">Simulated</Badge><Badge tone="info">Estimated</Badge><Badge tone="cyan">Forecast</Badge><Badge>Measured — none yet</Badge></div>
             <ol className="list-decimal space-y-2 pl-4 text-sm text-muted">
+              <li>Implement the service interfaces in <code>src/services</code> (vehicles, sessions, battery, energy, forecasting, scheduler, faults, datasets, simulation) with Supabase queries; UI components already consume only those interfaces.</li>
               <li>Replace the demo-data module with adapters for fleet telematics and charger (e.g. OCPP) logs, each tagged with dataset and time range.</li>
               <li>Add metered PV, storage and grid data alongside — never silently mixed with — simulated records.</li>
               <li>Calibrate battery-health and forecasting models against observed data; publish error metrics.</li>

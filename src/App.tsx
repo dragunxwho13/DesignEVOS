@@ -1,37 +1,21 @@
+import { lazy, Suspense } from "react";
 import { useRoute } from "./lib/router";
 import { StoreProvider } from "./lib/store";
 import Site from "./site/Site";
-import Shell from "./app/Shell";
-import { Overview, Fleet, VehicleDetail, Scheduler, Energy } from "./app/pages1";
-import { Battery, Forecasts, Sustainability, Explain } from "./app/pages2";
-import { Scenarios, SystemView, Alerts, Settings, Methodology } from "./app/pages3";
+import { Spinner } from "./components/ui";
 
-function AppRoutes({ path }: { path: string }) {
-  const [, , section = "overview", param] = path.split("/");
-  let page;
-  switch (section) {
-    case "fleet": page = param ? <VehicleDetail id={param} /> : <Fleet />; break;
-    case "scheduler": page = <Scheduler />; break;
-    case "energy": page = <Energy />; break;
-    case "battery": page = <Battery />; break;
-    case "forecasts": page = <Forecasts />; break;
-    case "sustainability": page = <Sustainability />; break;
-    case "explain": page = <Explain id={param} />; break;
-    case "scenarios": page = <Scenarios />; break;
-    case "system": page = <SystemView />; break;
-    case "alerts": page = <Alerts />; break;
-    case "settings": page = <Settings />; break;
-    case "methodology": page = <Methodology />; break;
-    default: page = <Overview />;
-  }
-  return <Shell section={section === "fleet" && param ? "fleet" : section}><div key={path}>{page}</div></Shell>;
-}
+// The operational app is split from the public site so first paint of the website stays light.
+const AppRoutes = lazy(() => import("./app/AppRoutes"));
 
 export default function App() {
   const path = useRoute();
   return (
     <StoreProvider>
-      {path.startsWith("/app") ? <AppRoutes path={path} /> : <Site />}
+      {path.startsWith("/app") ? (
+        <Suspense fallback={<div className="grid min-h-screen place-items-center bg-soft"><Spinner label="Loading EVOS workspace…" /></div>}>
+          <AppRoutes path={path} />
+        </Suspense>
+      ) : <Site />}
     </StoreProvider>
   );
 }

@@ -103,11 +103,11 @@ export function Segmented<T extends string | number>({ value, onChange, options,
     if (el) setInd({ l: el.offsetLeft, w: el.offsetWidth });
   }, [value, options.length]);
   return (
-    <div ref={ref} role="radiogroup" aria-label={label} className={cx("relative inline-flex rounded-lg p-0.5", dark ? "bg-white/8" : "bg-soft border border-line")}>
+    <div ref={ref} role="radiogroup" aria-label={label} className={cx("relative inline-flex max-w-full overflow-x-auto rounded-lg p-0.5", dark ? "bg-white/8" : "bg-soft border border-line")}>
       <span aria-hidden className={cx("absolute top-0.5 bottom-0.5 rounded-md shadow-sm transition-all duration-200 ease-out", dark ? "bg-white/15" : "bg-white")} style={{ left: ind.l, width: ind.w }} />
       {options.map((o) => (
         <button key={String(o.v)} role="radio" aria-checked={o.v === value} onClick={() => onChange(o.v)}
-          className={cx("relative z-10 h-8 rounded-md px-3 text-xs font-medium transition-colors duration-150", o.v === value ? (dark ? "text-white" : "text-ink") : (dark ? "text-white/60 hover:text-white" : "text-muted hover:text-ink"))}>
+          className={cx("relative z-10 h-8 shrink-0 rounded-md px-3 text-xs font-medium whitespace-nowrap transition-colors duration-150", o.v === value ? (dark ? "text-white" : "text-ink") : (dark ? "text-white/60 hover:text-white" : "text-muted hover:text-ink"))}>
           {o.label}
         </button>
       ))}
@@ -209,7 +209,7 @@ export function Disclosure({ id, label, children, defaultOpen = false, className
         {label}
         <ChevronDown size={16} aria-hidden className={cx("shrink-0 text-muted transition-transform duration-200 ease-out", open && "rotate-180")} />
       </button>
-      <div id={`${key}-p`} role="region" aria-label={label} className={cx("grid transition-[grid-template-rows] duration-220 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")} hidden={!open && undefined}>
+      <div id={`${key}-p`} role="region" aria-label={label} className={cx("grid transition-[grid-template-rows] duration-220 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
         <div className="overflow-hidden" inert={!open}>
           <div className="border-t border-line px-4 py-3 text-sm leading-relaxed text-muted">{children}</div>
         </div>

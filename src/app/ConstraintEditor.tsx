@@ -13,7 +13,6 @@ export default function ConstraintEditor({ vehicleId, onDone }: { vehicleId: str
   const [dep, setDep] = useState(o.departureStep ?? base.departure);
   const [target, setTarget] = useState(o.requiredSoC ?? base.requiredSoC);
   useEffect(() => { setPriority(o.priority ?? "Normal"); setDep(o.departureStep ?? base.departure); setTarget(o.requiredSoC ?? base.requiredSoC); }, [vehicleId, a.overrides]); // eslint-disable-line
-  const err = target <= v.soc && v.readiness !== "Ready" ? undefined : undefined;
   const changed = priority !== (o.priority ?? "Normal") || dep !== (o.departureStep ?? base.departure) || target !== (o.requiredSoC ?? base.requiredSoC);
   const opts = Array.from({ length: (STEPS - NOW) / 2 }, (_, i) => NOW + 2 + i * 2);
   return (
@@ -33,7 +32,7 @@ export default function ConstraintEditor({ vehicleId, onDone }: { vehicleId: str
           {opts.map((t) => <option key={t} value={t}>{fmtT(t)}</option>)}
         </select>
       </Field>
-      <Field id={`tg-${vehicleId}`} label="Required departure SoC" error={err} help={`Default ${base.requiredSoC}% · current ${v.soc}%`}>
+      <Field id={`tg-${vehicleId}`} label="Required departure SoC" help={`Default ${base.requiredSoC}% · current ${v.soc}%`}>
         <Slider id={`tg-${vehicleId}`} value={target} min={40} max={100} step={5} onChange={setTarget} fmt={(x) => `${x}%`} />
       </Field>
       <div className="flex flex-wrap gap-2">

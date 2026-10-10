@@ -42,10 +42,18 @@ export function parseJSON(text: string): ParsedFile {
   return { columns, rows, format: "json" };
 }
 
+export const DERIVED_TS = "timestamp (derived from YEAR/MO/DY/HR)";
 export function parseFile(name: string, text: string): ParsedFile {
-  if (/\.json$/i.test(name)) return parseJSON(text);
-  if (/\.csv$/i.test(name)) return parseCSV(text);
-  throw new Error("Unsupported file type. Use .csv or .json.");
+  const p = /\.json$/i.test(name) ? parseJSON(text) : /\.csv$/i.test(name) ? parseCSV(text) : null;
+  if (!p) throw new Error("Unsupported file type. Use .csv or .json.");
+  // NASA POWER-style exports split time into columns; offer a clearly labelled derived column (no offset assumed).
+  const up = p.columns.map((c) => c.toUpperCase());
+  if (["YEAR", "MO", "DY", "HR"].every((k) => up.includes(k))) {
+    const col = (k: string) => p.columns[up.indexOf(k)];
+    p.columns = [DERIVED_TS, ...p.columns];
+    p.rows = p.rows.map((r) => ({ [DERIVED_TS]: `${r[col("YEAR")]}-${String(r[col("MO")]).padStart(2, "0")}-${String(r[col("DY")]).padStart(2, "0")}T${String(r[col("HR")]).padStart(2, "0")}:00:00`, ...r }));
+  }
+  return p;
 }
 
 const isTs = (v: string) => /\d{4}-\d{2}-\d{2}/.test(v) && !Number.isNaN(Date.parse(v));
