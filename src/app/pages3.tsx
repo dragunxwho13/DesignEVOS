@@ -91,7 +91,7 @@ export function Scenarios() {
             </div>
           </Panel>
           <Panel title="Grid import: baseline vs scenario" sub="kW · demo day">
-            <TimeChart title="Grid import comparison" summary={s ? `Baseline peak ${b.peakGrid.toFixed(0)} kW, scenario peak ${s.peakGrid.toFixed(0)} kW.` : "Baseline only."} unit="kW" height={220}
+            <TimeChart title="Grid import comparison" summary={s ? `Highest grid draw: ${b.peakGrid.toFixed(0)} kW today vs ${s.peakGrid.toFixed(0)} kW in this scenario.` : "Run a scenario to compare it with today."} unit="kW" height={220}
               xLabels={sim.flows.map((f) => fmtT(f.t))} refLines={[{ y: run ? run.inputs.gridLimitKW : a.gridLimitKW, label: `Limit ${run ? run.inputs.gridLimitKW : a.gridLimitKW} kW`, color: C.err }]}
               series={[
                 { key: "b", label: "Baseline", color: "#9AA8B8", kind: "line", values: sim.flows.map((f) => f.grid) },

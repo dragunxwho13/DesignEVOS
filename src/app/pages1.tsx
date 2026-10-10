@@ -54,7 +54,7 @@ export function Overview() {
       </Panel>
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <Panel title="Energy mix through the day" sub="Supply to site demand, kW, 15-min steps. Shaded area is forecast." right={<Link to="/app/energy" className="text-sm font-medium text-[#0d7584] hover:underline">Energy manager</Link>}>
-          <TimeChart title="Energy mix" summary={`PV ${t.pvToLoad.toFixed(0)} kWh, storage ${t.storageToLoad.toFixed(0)} kWh, grid ${t.grid.toFixed(0)} kWh.`} unit="kW" height={260}
+          <TimeChart title="Energy mix" summary={`Today solar supplied ${t.pvToLoad.toFixed(0)} kWh, the battery ${t.storageToLoad.toFixed(0)} kWh and the grid ${t.grid.toFixed(0)} kWh.`} unit="kW" height={260}
             xLabels={hourLabels()} marker={{ x: NOW, label: "Now · forecast →" }} refLines={[{ y: sim.a.gridLimitKW, label: `Grid limit ${sim.a.gridLimitKW} kW`, color: C.err }]}
             series={[
               { key: "pv", label: "PV to load", color: C.teal, kind: "area", stack: true, values: sim.flows.map((f) => f.pvToLoad) },
@@ -227,7 +227,7 @@ export function VehicleDetail({ id }: { id: string }) {
       <Drawer open={edit} onClose={() => setEdit(false)} title={`Constraints · ${v.id}`}><ConstraintEditor vehicleId={v.id} onDone={() => setEdit(false)} /></Drawer>
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <Panel title="Charging timeline" sub="Simulated SoC across the demo day. Solid = plan before now; dashed = projected.">
-          <TimeChart title={`${v.id} SoC timeline`} summary={`From ${v.soc}% to projected ${v.projectedSoC}% by departure at ${fmtT(v.departure)}.`} unit="%" yMax={100} height={240}
+          <TimeChart title={`${v.id} SoC timeline`} summary={`Battery charge goes from ${v.soc}% now to about ${v.projectedSoC}% when it leaves at ${fmtT(v.departure)}.`} unit="%" yMax={100} height={240}
             xLabels={hourLabels()} marker={{ x: NOW, label: "Now" }}
             refLines={[{ y: v.requiredSoC, label: `Required ${v.requiredSoC}%`, color: C.teal }]}
             series={[
@@ -257,7 +257,7 @@ export function VehicleDetail({ id }: { id: string }) {
           </Panel>
         </div>
         <Panel title="Estimated battery health" sub={`${v.estSoH}% ± ${v.sohUnc} estimated · show 12-month trend`} collapsible="vd-soh" defaultOpen={false} right={v.sohFlag ? <Badge tone="warn">Flag</Badge> : <Badge tone="ok">No flag</Badge>}>
-          <TimeChart title="SoH trend" summary={`Estimated SoH ${v.estSoH}% ± ${v.sohUnc}.`} unit="%" height={190} yMax={100}
+          <TimeChart title="SoH trend" summary={`The battery keeps about ${v.estSoH}% of its original capacity (give or take ${v.sohUnc}%).`} unit="%" height={190} yMax={100}
             xLabels={trend.map((p) => `M-${11 - p.m}`)} band={{ lo: trend.map((p) => p.lo), hi: trend.map((p) => p.hi), color: C.teal, label: "Uncertainty" }}
             series={[{ key: "s", label: "Estimated SoH", color: C.teal, kind: "line", values: trend.map((p) => p.value) }]} />
           {v.sohFlag && <p className="mt-3 text-sm text-[#8a5f1f]">{v.sohFlag}.</p>}
@@ -347,7 +347,7 @@ export function Scheduler() {
           </div>
           <div className="mt-6 border-t border-line pt-5">
             <h3 className="mb-2 text-sm font-semibold">Charging load vs site power cap</h3>
-            <TimeChart title="Charging load vs cap" summary="Scheduled charging power stays within the site cap at each step." unit="kW" height={180}
+            <TimeChart title="Charging load vs cap" summary="Charging never goes above the dashed site limit, so the connection is never overloaded." unit="kW" height={180}
               xLabels={loadSeries.map((f) => fmtT(f.t))}
               series={[
                 { key: "c", label: "Scheduled charging", color: C.cyan, kind: "area", values: loadSeries.map((f) => f.charging) },
@@ -483,7 +483,7 @@ export function Energy() {
       <div className="mt-5 grid gap-5 xl:grid-cols-[2fr_1fr]">
         <Panel title="Supply by source vs grid limit" sub="Which source meets demand, and is the grid limit respected? kW, 15-min steps." right={
           <Segmented label="Time range" value={range} onChange={setRange} options={[{ v: "day", label: "Full day" }, { v: "am", label: "06–13" }, { v: "pm", label: "12–18" }, { v: "eve", label: "17–24" }]} />}>
-          <TimeChart title="Supply by source" summary={`Peak grid import ${tot.peakGrid.toFixed(1)} kW vs ${sim.a.gridLimitKW} kW limit.`} unit="kW" height={260}
+          <TimeChart title="Supply by source" summary={`The most power drawn from the grid at once is ${tot.peakGrid.toFixed(0)} kW, against a limit of ${sim.a.gridLimitKW} kW.`} unit="kW" height={260}
             xLabels={fl.map((x) => fmtT(x.t))} marker={NOW > r0 && NOW < r1 ? { x: NOW - r0, label: "Now · forecast →" } : undefined} refLines={[{ y: sim.a.gridLimitKW, label: `Grid limit ${sim.a.gridLimitKW} kW`, color: C.err }]}
             series={[
               { key: "pv", label: "PV to load", color: C.teal, kind: "area", stack: true, values: fl.map((x) => x.pvToLoad) },
@@ -505,7 +505,7 @@ export function Energy() {
           </div>
           <div className="mt-5 border-t border-line pt-4">
             <h3 className="mb-2 text-sm font-semibold">Storage state of charge</h3>
-            <TimeChart title="Storage SoC" summary={`Minimum ${tot.minStorage.toFixed(0)}%, reserve ${sim.a.reservePct}%.`} unit="%" yMax={100} height={150}
+            <TimeChart title="Storage SoC" summary={`The site battery never drops below ${tot.minStorage.toFixed(0)}% full; ${sim.a.reservePct}% is always kept in reserve.`} unit="%" yMax={100} height={150}
               xLabels={hourLabels()} refLines={[{ y: sim.a.reservePct, label: `Reserve ${sim.a.reservePct}%`, color: C.warn }]}
               series={[{ key: "s", label: "Storage SoC", color: C.storage, kind: "line", values: sim.flows.map((x) => x.storageSoC) }]} />
           </div>
@@ -525,7 +525,7 @@ export function Energy() {
           </ul>
         </Panel>
         <Panel title="Tariff and carbon signals" sub={`₹${(sim.a.tariffINR * 0.75).toFixed(2)}–₹${(sim.a.tariffINR * sim.a.peakMult).toFixed(2)}/kWh · ${sim.a.carbonG} gCO₂e/kWh`} collapsible="en-price" defaultOpen={false}>
-          <TimeChart title="Tariff" summary={`Off-peak ₹${(sim.a.tariffINR * 0.75).toFixed(2)}, standard ₹${sim.a.tariffINR}, peak ₹${(sim.a.tariffINR * sim.a.peakMult).toFixed(2)} per kWh.`} unit="₹/kWh" height={150}
+          <TimeChart title="Tariff" summary={`Electricity costs ₹${(sim.a.tariffINR * 0.75).toFixed(2)} per kWh at night, ₹${sim.a.tariffINR} normally and ₹${(sim.a.tariffINR * sim.a.peakMult).toFixed(2)} at peak times.`} unit="₹/kWh" height={150}
             xLabels={hourLabels()} series={[{ key: "p", label: "Tariff", color: C.ink, kind: "line", values: sim.flows.map((x) => sim.a.tariffINR * (x.t >= 68 && x.t < 88 ? sim.a.peakMult : x.t < 24 ? 0.75 : 1)) }]} />
           <p className="mt-2 text-xs text-muted">Grid carbon intensity: {sim.a.carbonG} gCO₂e/kWh (constant demo value; hourly data not connected).</p>
         </Panel>

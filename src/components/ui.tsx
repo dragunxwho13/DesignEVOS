@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Link } from "../lib/router";
 
 export function cx(...c: (string | false | null | undefined)[]) {
@@ -390,21 +390,23 @@ export function Spinner({ label }: { label: string }) {
  */
 const NUM = /-?\d[\d,]*\.?\d*/g;
 export function Tween({ value, duration = 600 }: { value: string | number; duration?: number }) {
+  // Animates by writing to the DOM node directly: one React render per value change instead of
+  // one per animation frame, which keeps interactions responsive on pages with many numbers.
   const str = String(value);
-  const [shown, setShown] = useState(str);
-  const [flash, setFlash] = useState(0);
-  const prev = useRef(str);
-  const first = useRef(true);
-  useEffect(() => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const prev = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
     const from = prev.current;
     prev.current = str;
-    if (first.current) { first.current = false; setShown(str); return; }
-    if (from === str) return;
-    if (/\d:\d\d/.test(str)) { setShown(str); setFlash((f) => f + 1); return; }
-    setFlash((f) => f + 1);
+    if (from === null || from === str) { el.textContent = str; return; }
+    el.classList.remove("flash");
+    void el.offsetWidth; // restart the highlight animation
+    el.classList.add("flash");
     const a = from.match(NUM) ?? [], b = str.match(NUM) ?? [];
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || a.length !== b.length || !b.length) { setShown(str); return; }
+    if (/\d:\d\d/.test(str) || reduce || a.length !== b.length || !b.length) { el.textContent = str; return; }
     const parse = (x: string) => Number(x.replace(/,/g, ""));
     const dec = b.map((x) => (x.split(".")[1] ?? "").length);
     const commas = b.map((x) => x.includes(","));
@@ -414,17 +416,16 @@ export function Tween({ value, duration = 600 }: { value: string | number; durat
       const t = Math.min(1, (now - start) / duration);
       const e = 1 - Math.pow(1 - t, 3);
       let i = 0;
-      setShown(str.replace(NUM, () => {
+      el.textContent = t >= 1 ? str : str.replace(NUM, () => {
         const v = parse(a[i]) + (parse(b[i]) - parse(a[i])) * e;
         const out = commas[i] ? v.toLocaleString("en-IN", { minimumFractionDigits: dec[i], maximumFractionDigits: dec[i] }) : v.toFixed(dec[i]);
         i++;
         return out;
-      }));
+      });
       if (t < 1) raf = requestAnimationFrame(step);
-      else setShown(str);
     };
     raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); el.textContent = str; };
   }, [str, duration]);
-  return <span key={flash} className={cx("rounded", flash > 0 && "flash")}>{shown}</span>;
+  return <span ref={ref} className="rounded" />;
 }

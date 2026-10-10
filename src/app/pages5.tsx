@@ -247,7 +247,7 @@ export function Experiments() {
                   </div>
                   <div>
                     <h3 className="mb-2 text-sm font-semibold">Estimated energy cost by strategy (₹)</h3>
-                    <Bars title="Cost by strategy" summary={Object.entries(cur.results).map(([k, v]) => `${k} ₹${v.costINR}`).join(", ")} unit="₹" height={180}
+                    <Bars title="Cost by strategy" summary={`Charging cost per strategy: ${Object.entries(cur.results).map(([k, v]) => `${k} ₹${v.costINR}`).join(", ")}. Lower is better.`} unit="₹" height={180}
                       data={Object.entries(cur.results).map(([k, v]) => ({ label: STRATEGIES.find((x) => x.id === k)!.short, a: v.costINR }))} />
                   </div>
                   <Disclosure id="ex-cfg" label="Explore input configuration">

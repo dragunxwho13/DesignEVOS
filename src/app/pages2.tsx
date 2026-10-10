@@ -52,7 +52,7 @@ export function Battery() {
                 <div><dt className="flex items-center text-xs text-muted">Remaining useful life<InfoTip label="Remaining useful life">Not shown: no validated RUL method exists yet. It will be enabled after calibration against NASA aging data and fleet telemetry.</InfoTip></dt><dd className="font-medium text-muted">Not implemented</dd></div>
                 <div><dt className="text-xs text-muted">Voltage · current · temp.</dt><dd className="font-medium text-muted">No telemetry</dd></div>
               </dl>
-              <TimeChart title="SoH trend" summary={`Estimated SoH fell to ${v.estSoH}% over 12 months.`} unit="%" height={220}
+              <TimeChart title="SoH trend" summary={`Over 12 months the battery went down to about ${v.estSoH}% of its original capacity.`} unit="%" height={220}
                 xLabels={trend.map((p) => `M-${11 - p.m}`)} band={{ lo: trend.map((p) => p.lo), hi: trend.map((p) => p.hi), color: C.teal, label: "Uncertainty band" }}
                 refLines={[{ y: 86, label: "Review threshold 86%", color: C.warn }]} yMax={100}
                 series={[{ key: "s", label: "Estimated SoH (monthly)", color: C.teal, kind: "line", values: trend.map((p) => p.value) }]} />
@@ -98,7 +98,7 @@ export function Forecasts() {
           <Segmented label="Series" value={kind} onChange={setKind} options={[{ v: "demand", label: "Demand" }, { v: "pv", label: "Solar" }]} />
           <Segmented label="Horizon" value={hz} onChange={setHz} options={[{ v: 24, label: "6 h" }, { v: 48, label: "12 h" }, { v: STEPS - NOW, label: "Rest of day" }]} />
         </div>}>
-        <TimeChart title={`${label} forecast`} summary={`Forecast ${energy.toFixed(0)} kWh over the next ${(to - NOW) / 4} hours, peak ${peak.v.toFixed(0)} kW at ${fmtT(peak.t)}.`}
+        <TimeChart title={`${label} forecast`} summary={`Expect about ${energy.toFixed(0)} kWh over the next ${(to - NOW) / 4} hours, busiest at ${fmtT(peak.t)} (${peak.v.toFixed(0)} kW).`}
           unit="kW" height={300} xLabels={view.map((p) => fmtT(p.t))} marker={{ x: NOW - from, label: "Now" }}
           band={{ lo: view.map((p) => p.lo), hi: view.map((p) => p.hi), color: C.cyan, label: "Forecast bounds (≈80%)" }}
           series={[
@@ -153,7 +153,7 @@ export function Sustainability() {
       </Panel>
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel title="Estimated emissions by day" sub="kg CO₂e · grey = grid-only baseline, teal = EVOS scenario. Highlighted = selected demo day.">
-          <Bars title="Emissions by day" summary="Scenario emissions are lower than baseline on sunnier days." unit="kg" height={240} highlight={a.day}
+          <Bars title="Emissions by day" summary="Shorter teal bars mean less CO₂ — EVOS saves the most on sunny days." unit="kg" height={240} highlight={a.day}
             data={week.map((d) => ({ label: DAY_NAMES[d.day], a: d.r.totals.emissionsKg, b: d.r.totals.baselineKg }))} />
         </Panel>
         <Panel title="Energy mix" sub={`${t.load.toFixed(0)} kWh total demand`}>
