@@ -136,6 +136,7 @@ function Sources({ onImport }: { onImport: (cat: string) => void }) {
   )
   return (
     <>
+      <AcnEvidence live={live} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented
           label="Filter by priority"
@@ -166,6 +167,7 @@ function Sources({ onImport }: { onImport: (cat: string) => void }) {
                     ? "info"
                     : "neutral"
                 }
+
               >
                 {s.priority}
               </Badge>
@@ -236,6 +238,87 @@ function Sources({ onImport }: { onImport: (cat: string) => void }) {
         imports are validated locally for this prototype and are not persisted.
       </p>
     </>
+  )
+}
+
+function AcnEvidence({
+  live,
+}: {
+  live: ReturnType<typeof useStore>["live"]
+}) {
+  const source = live?.sources.find((item) => item.source === "ACN-Data")
+  const baseline = live?.parameters.acnHistoricalBaseline
+  const fetched = source?.fetchedAt
+    ? new Date(source.fetchedAt).toLocaleString()
+    : null
+  const verified = source?.status === "connected" && source.usable === true
+  return (
+    <Panel
+      title="ACN-Data mapping evidence"
+      sub="This panel is intentionally separate from the simulated EVOS fleet."
+      className="mb-5 border-cyan/30"
+    >
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ProvBadge p={verified ? "real" : "not-connected"} />
+            <span className="text-sm font-medium">
+              {verified
+                ? "ACN response received and normalized"
+                : "ACN response not verified in this browser session"}
+            </span>
+          </div>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
+            {verified
+              ? `The backend fetched ACN-Data and normalized ${baseline?.recordCount ?? 0} historical charging records. These records provide charging behaviour context; they are not physical real-time telemetry.`
+              : source?.limitation ??
+                "Configure ACN_DATA_API_KEY on the backend to fetch ACN records. The UI will not label ACN as live until a usable server response is received."}
+          </p>
+          <p className="mt-3 text-xs text-muted">
+            Mapping rule: ACN session ID, station ID, timestamps and delivered
+            energy → historical baseline metrics. No ACN record is assigned to
+            BUS-01, VAN-01, CRT-01, or any other EVOS vehicle without a
+            verified identity mapping.
+          </p>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-soft p-4 text-xs">
+          <div>
+            <dt className="text-muted">Backend status</dt>
+            <dd className="mt-1 font-medium text-ink">
+              {source?.status ?? "not connected"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Usable response</dt>
+            <dd className="mt-1 font-medium text-ink">
+              {source?.usable === true ? "yes" : "no"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Historical records</dt>
+            <dd className="tnum mt-1 font-medium text-ink">
+              {baseline?.recordCount ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Delivered energy</dt>
+            <dd className="tnum mt-1 font-medium text-ink">
+              {baseline ? `${baseline.totalDeliveredKWh.toFixed(1)} kWh` : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Station count</dt>
+            <dd className="tnum mt-1 font-medium text-ink">
+              {baseline?.stationCount ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Fetched</dt>
+            <dd className="mt-1 font-medium text-ink">{fetched ?? "—"}</dd>
+          </div>
+        </dl>
+      </div>
+    </Panel>
   )
 }
 
