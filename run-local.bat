@@ -23,7 +23,7 @@ echo.
 call :is_up "%BACKEND_URL%/api/v1/health"
 if errorlevel 1 (
   echo Starting backend...
-  start "EVOS Backend" powershell.exe -NoProfile -NoExit -Command "Set-Location -LiteralPath '%~dp0'; node backend/server.mjs"
+  start "EVOS Backend" powershell.exe -NoProfile -NoExit -Command "Set-Location -LiteralPath '%~dp0'; node --env-file=backend/.env backend/server.mjs"
 ) else (
   echo Backend already running.
 )
