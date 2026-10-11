@@ -574,6 +574,24 @@ The backend test suite covers:
 - The current API is stateless and has no persistent audit log.
 - Do not interpret the simulated SSE stream as physical telemetry.
 
+## Vercel deployment
+
+The current production deployment is available at:
+
+<https://evos-black.vercel.app>
+
+The Vercel deployment includes the Vite frontend and a serverless-compatible backend handler. The
+production API is available under the same origin:
+
+```text
+https://evos-black.vercel.app/api/v1/health
+https://evos-black.vercel.app/api/v1/live/parameters
+```
+
+The ACN credential is configured as a Vercel production secret and is never exposed to the browser.
+Frontend `VITE_BACKEND_URL` points to the same deployment origin. Redeploy after changing any
+production environment variable.
+
 ## Known limitations
 
 1. ACN-Data is historical, not physical real-time telemetry.
@@ -586,6 +604,8 @@ The backend test suite covers:
 8. No user login, role authorization, multi-tenant isolation, or database exists.
 9. Browser imports are validated locally and are not persisted.
 10. Forecasts and battery health are deterministic estimates, not trained production models.
+11. Vercel deployment still has no authentication, authorization, persistent database, or physical
+    telemetry/control integration.
 
 ## Troubleshooting
 

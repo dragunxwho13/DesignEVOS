@@ -297,8 +297,7 @@ async function readJson(req) {
   }
 }
 
-export function createApp() {
-  return http.createServer(async (req, res) => {
+export async function handleRequest(req, res) {
     const origin = req.headers.origin || ""
 
     if (req.method === "OPTIONS") {
@@ -647,7 +646,10 @@ export function createApp() {
         origin,
       )
     }
-  })
+}
+
+export function createApp() {
+  return http.createServer(handleRequest)
 }
 
 if (

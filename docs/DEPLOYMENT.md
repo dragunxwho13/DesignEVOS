@@ -93,8 +93,22 @@ reports deterministic fallback metadata instead of presenting the fallback as li
 
 ## Hosted deployment considerations
 
-No hosted deployment is claimed. The current backend is a stateless prototype and is not a
-production telemetry, control, or multi-tenant platform.
+The current Vercel deployment is available at:
+
+```text
+https://evos-black.vercel.app
+```
+
+The frontend and backend are deployed together. The backend is exposed through the same-origin
+API routes:
+
+```text
+https://evos-black.vercel.app/api/v1/health
+https://evos-black.vercel.app/api/v1/live/parameters
+```
+
+The backend is a serverless-compatible stateless prototype and is not a production telemetry,
+control, or multi-tenant platform.
 
 A production deployment needs:
 
@@ -118,3 +132,10 @@ loop can run inside a standard Vercel function.
 - [ ] Verify `/api/v1/live/parameters` and source provenance.
 - [ ] Run backend tests, TypeScript validation, and the production build.
 - [ ] Confirm that the UI still labels historical, modelled, calculated, and simulated data.
+
+## Current production verification
+
+- [x] Frontend returns HTTP 200.
+- [x] Backend health returns HTTP 200.
+- [x] ACN returns `connected`, `current_api`, and `usable: true`.
+- [x] ACN normalization returns 25 historical records in the configured deployment.
