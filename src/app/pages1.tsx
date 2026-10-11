@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, ArrowRight, ArrowUpDown, ChevronLeft } from "lucide-react";
+import { Search, ArrowRight, ArrowUpDown, ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link, navigate } from "../lib/router";
@@ -8,7 +8,7 @@ import ConstraintEditor from "./ConstraintEditor";
 import { getBackend } from "../services";
 import { TimeChart, Donut, Legend, C } from "../components/charts";
 import EnergySchematic from "../components/EnergySchematic";
-import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, STRATEGIES, compareStrategies, type Readiness, type VehicleState, type Strategy } from "../lib/sim";
+import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, STRATEGIES, compareStrategies, type Readiness, type VehicleState, type Strategy, type VClass, type VehicleSpec } from "../lib/sim";
 
 const hourLabels = (from = 0) => Array.from({ length: STEPS - from }, (_, i) => fmtT(i + from));
 
@@ -36,7 +36,7 @@ export function Overview() {
         <div className="grid gap-8 lg:grid-cols-[1.3fr_2fr]">
           <div>
             <div className="text-xs font-medium text-muted">Fleet readiness for upcoming departures</div>
-            <div className="tnum mt-1 text-5xl font-semibold tracking-tight"><Tween value={ready} /><span className="text-xl text-muted"> / 20 ready</span></div>
+            <div className="tnum mt-1 text-5xl font-semibold tracking-tight"><Tween value={ready} /><span className="text-xl text-muted"> / {sim.vehicles.length} ready</span></div>
             <div className="mt-4 flex h-2.5 overflow-hidden rounded-full" role="img" aria-label={counts.map((c) => `${c.r} ${c.n}`).join(", ")}>
               {counts.map((c) => c.n > 0 && <div key={c.r} style={{ width: `${c.n * 5}%`, background: colors[c.r], transition: "width 600ms cubic-bezier(0.65,0,0.35,1)" }} />)}
             </div>
@@ -103,7 +103,7 @@ export function Overview() {
 
 type SortKey = "id" | "soc" | "departure" | "soh" | "energy";
 export function Fleet() {
-  const { a } = useStore();
+  const { a, addVehicle, removeVehicle, toast } = useStore();
   const state = useLoad(() => getBackend().vehicles.list(a), [a], (d) => d.length === 0);
   const list = state.status === "ready" ? state.data : [];
   const [q, setQ] = useState("");
@@ -111,6 +111,8 @@ export function Fleet() {
   const [st, setSt] = useState("All");
   const [sort, setSort] = useState<SortKey>("departure");
   const [dir, setDir] = useState<1 | -1>(1);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ id: "", cls: "Service van" as VClass, capKWh: "60", maxKW: "30", soc: "40", requiredSoC: "85", departure: "18:00" });
   const rows = useMemo(() => {
     const r = list.filter((v) =>
       (cls === "All" || v.cls === cls) && (st === "All" || v.readiness === st) &&
@@ -126,7 +128,25 @@ export function Fleet() {
   );
   return (
     <>
-      <PageHeader title="Fleet" sub={`${list.length || 20} simulated campus vehicles: 6 shuttle buses, 4 service vans and 10 utility carts. Select a vehicle for detail.`} right={<ProvBadge p="simulated" />} />
+      <PageHeader title="Fleet" sub={`${list.length} active vehicles in the local registry. Add, remove or inspect a vehicle; scheduler outputs recalculate from the current registry.`} right={<div className="flex items-center gap-2"><ProvBadge p="simulated" /><Button size="sm" onClick={() => setAdding((v) => !v)}><Plus size={14} />Add vehicle</Button></div>} />
+      {adding && <Panel className="mb-5" title="Add vehicle to registry" sub="This prototype saves the vehicle locally and includes it in scheduler calculations.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm">Vehicle ID<input className={inputCls} value={draft.id} placeholder="EV-021" onChange={(e) => setDraft({ ...draft, id: e.target.value.toUpperCase() })} /></label>
+          <label className="text-sm">Class<select className={inputCls} value={draft.cls} onChange={(e) => setDraft({ ...draft, cls: e.target.value as VClass })}><option>Shuttle bus</option><option>Service van</option><option>Utility cart</option></select></label>
+          <label className="text-sm">Battery kWh<input className={inputCls} type="number" min="1" value={draft.capKWh} onChange={(e) => setDraft({ ...draft, capKWh: e.target.value })} /></label>
+          <label className="text-sm">Max charge kW<input className={inputCls} type="number" min="1" value={draft.maxKW} onChange={(e) => setDraft({ ...draft, maxKW: e.target.value })} /></label>
+          <label className="text-sm">Current SoC %<input className={inputCls} type="number" min="0" max="100" value={draft.soc} onChange={(e) => setDraft({ ...draft, soc: e.target.value })} /></label>
+          <label className="text-sm">Target SoC %<input className={inputCls} type="number" min="1" max="100" value={draft.requiredSoC} onChange={(e) => setDraft({ ...draft, requiredSoC: e.target.value })} /></label>
+          <label className="text-sm">Departure<input className={inputCls} type="time" value={draft.departure} onChange={(e) => setDraft({ ...draft, departure: e.target.value })} /></label>
+          <div className="flex items-end gap-2"><Button onClick={() => {
+            const [hh, mm] = draft.departure.split(":").map(Number);
+            const id = draft.id.trim();
+            if (!id || list.some((v) => v.id === id)) { toast("Use a unique vehicle ID"); return; }
+            const vehicle: VehicleSpec = { id, cls: draft.cls, capKWh: Number(draft.capKWh), maxKW: Number(draft.maxKW), soc: Number(draft.soc), requiredSoC: Number(draft.requiredSoC), departure: hh * 4 + Math.round(mm / 15), arrival: NOW, cycles: 0, ageMonths: 0, fastShare: draft.cls === "Shuttle bus" ? 0.9 : draft.cls === "Service van" ? 0.4 : 0, dcOnly: draft.cls === "Shuttle bus", acOnly: draft.cls === "Utility cart" };
+            addVehicle(vehicle); setAdding(false); setDraft({ ...draft, id: "" });
+          }}>Save vehicle</Button><Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button></div>
+        </div>
+      </Panel>}
       <Panel pad={false}>
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
           <div className="relative min-w-56 flex-1">
@@ -166,7 +186,7 @@ export function Fleet() {
                       <td className="tnum px-4 py-3">{fmtT(v.arrival)} → {fmtT(v.departure)} <span className="text-xs text-muted">· {v.requiredSoC}%</span></td>
                       <td className="tnum px-4 py-3">{v.energyRequiredKWh ? `${v.energyRequiredKWh.toFixed(1)} kWh` : <span className="text-muted">—</span>}</td>
                       <td className="tnum px-4 py-3">{v.session?.chargerId ?? <span className="text-muted">—</span>}</td>
-                      <td className="px-4 py-3 text-right"><ArrowRight size={15} className="inline text-muted opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></td>
+                      <td className="px-4 py-3 text-right"><button aria-label={`Remove ${v.id}`} className="mr-3 text-muted hover:text-err" onClick={(e) => { e.stopPropagation(); removeVehicle(v.id); }}><Trash2 size={15} /></button><ArrowRight size={15} className="inline text-muted opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></td>
                     </tr>
                   ))}
                 </tbody>

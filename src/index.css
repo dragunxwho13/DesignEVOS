@@ -26,8 +26,27 @@ html {
 body {
   font-family: var(--font-sans);
   color: var(--color-ink);
-  background: #fff;
+  background: var(--color-soft);
   font-feature-settings: "cv11", "ss01";
+}
+::selection {
+  color: var(--color-deep);
+  background: rgba(24, 183, 201, 0.24);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-soft);
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid var(--color-soft);
+  border-radius: 999px;
+  background: #b9c8d6;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8fa5b8;
 }
 .tnum {
   font-variant-numeric: tabular-nums;
@@ -315,6 +334,12 @@ section[id] {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  @media (max-width: 639px) {
+    .hero-img {
+      animation-duration: 900ms;
+    }
   }
   .js .reveal {
     opacity: 1;

@@ -18,11 +18,14 @@ import {
   type VehicleOverride,
   type FaultId,
 } from "./sim"
+import { fetchLiveParameters, type LiveParameters } from "../services"
 
 interface Store {
   a: Assumptions
   setA: (a: Assumptions) => void
   sim: SimResult
+  live: LiveParameters | null
+  liveError: string | null
   alerts: AlertItem[]
   acked: Set<string>
   toggleAck: (id: string) => void
@@ -35,6 +38,8 @@ interface Store {
   setOverride: (id: string, o: VehicleOverride | null) => void
   toggleFault: (id: FaultId) => void
   resetAll: () => void
+  addVehicle: (vehicle: import("./sim").VehicleSpec) => void
+  removeVehicle: (id: string) => void
 }
 // Keep one context instance across hot-module reloads; otherwise an edited store module creates a
 // new context and already-mounted consumers can no longer find the provider.
@@ -64,7 +69,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setAState = (n: Assumptions) => startTransition(() => setAStateRaw(n))
   const [toastMsg, setToast] = useState<string | null>(null)
   const [prev, setPrev] = useState<Assumptions | null>(null)
-  const sim = useMemo(() => simulate(a), [a])
+  const [live, setLive] = useState<LiveParameters | null>(null)
+  const [liveError, setLiveError] = useState<string | null>(null)
+  const liveSolarMult = live?.parameters.solarMult
+  const liveTariff = live?.parameters.tariffINR
+  const liveCarbon = live?.parameters.carbonG
+  const sim = useMemo(
+    () =>
+      simulate({
+        ...a,
+        ...(liveSolarMult === null || liveSolarMult === undefined
+          ? {}
+          : { solarMult: liveSolarMult }),
+        ...(liveTariff === null || liveTariff === undefined
+          ? {}
+          : { tariffINR: liveTariff }),
+        ...(liveCarbon === null || liveCarbon === undefined
+          ? {}
+          : { carbonG: liveCarbon }),
+      }),
+    [a, liveSolarMult, liveTariff, liveCarbon],
+  )
+
+  useEffect(() => {
+    if (!import.meta.env.VITE_BACKEND_URL) return
+    let active = true
+    const refresh = async () => {
+      try {
+        const result = await fetchLiveParameters(a)
+        if (active) {
+          setLive(result)
+          setLiveError(null)
+        }
+      } catch (error) {
+        if (active)
+          setLiveError(
+            error instanceof Error ? error.message : "Live data unavailable",
+          )
+      }
+    }
+    void refresh()
+    const id = window.setInterval(refresh, 60_000)
+    return () => {
+      active = false
+      window.clearInterval(id)
+    }
+  }, [a.pvKWp])
   const alerts = useMemo(() => deriveAlerts(sim), [sim])
 
   useEffect(() => {
@@ -89,6 +139,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     a,
     setA: setAState,
     sim,
+    live,
+    liveError,
     alerts,
     acked,
     toggleAck: (id) =>
@@ -143,6 +195,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPrev(a)
       setAState(DEFAULTS)
       setToast("Simulation reset to illustrative defaults")
+    },
+    addVehicle: (vehicle) => {
+      const customVehicles = [...(a.customVehicles ?? []).filter((v) => v.id !== vehicle.id), vehicle]
+      setAState({ ...a, customVehicles })
+      setToast(`${vehicle.id} added to the local vehicle registry`)
+    },
+    removeVehicle: (id) => {
+      const removedVehicleIds = [...new Set([...(a.removedVehicleIds ?? []), id])]
+      setAState({ ...a, removedVehicleIds })
+      setToast(`${id} removed from the active vehicle registry`)
     },
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

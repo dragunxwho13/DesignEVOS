@@ -13,11 +13,9 @@ export interface ExternalSource {
   access: string;
 }
 
-/** External datasets EVOS is designed to use. None are connected in this frontend build. */
+/** External datasets currently supported by the EVOS source registry. */
 export const EXTERNAL_SOURCES: ExternalSource[] = [
   { id: "acn", name: "ACN-Data — Open EV Charging Dataset", use: "Real charging behaviour and scheduler validation", category: "Charging", priority: "Essential", docsUrl: "https://ev.caltech.edu/dataset", attribution: "Caltech Adaptive Charging Network", access: "Free API token required" },
-  { id: "elaad", name: "ElaadNL EV Charging Data", use: "Additional validation of charging patterns", category: "Charging", priority: "Recommended", docsUrl: "https://platform.elaad.io/", attribution: "ElaadNL", access: "Open data download" },
-  { id: "pecan", name: "Pecan Street Dataport", use: "EV, solar, household energy and storage analysis", category: "Energy", priority: "Optional", priorityNote: "Access-dependent", docsUrl: "https://www.pecanstreet.org/dataport/", attribution: "Pecan Street Inc.", access: "Licence / academic access" },
   { id: "nasa-battery", name: "NASA Li-ion Battery Aging Dataset", use: "Battery-health and degradation calibration", category: "Battery", priority: "Essential", docsUrl: "https://www.nasa.gov/intelligent-systems-division/discovery-and-systems-health/pcoe/pcoe-data-set-repository/", attribution: "NASA Ames Prognostics Center of Excellence", access: "Public download" },
   { id: "nasa-power", name: "NASA POWER Solar and Meteorological Data", use: "Weather and solar inputs for campus PV simulation", category: "Solar & weather", priority: "Essential", docsUrl: "https://power.larc.nasa.gov/", attribution: "NASA Langley Research Center POWER Project", access: "Public API" },
   { id: "pvgis", name: "PVGIS Solar Radiation and PV Performance", use: "Solar-model cross-validation", category: "Solar & weather", priority: "Supplementary", priorityNote: "Alternative or supplementary", docsUrl: "https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en", attribution: "European Commission JRC", access: "Public API" },
