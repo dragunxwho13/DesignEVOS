@@ -13,7 +13,7 @@ import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, STRATEGIES, comp
 const hourLabels = (from = 0) => Array.from({ length: STEPS - from }, (_, i) => fmtT(i + from));
 
 export function Overview() {
-  const { sim, alerts, acked } = useStore();
+  const { sim, alerts, acked, live } = useStore();
   const t = sim.totals;
   const now = sim.flows[NOW];
   const counts = (["Ready", "Charging", "Scheduled", "At risk", "Idle", "Unavailable"] as Readiness[]).map((r) => ({ r, n: sim.vehicles.filter((v) => v.readiness === r).length }));
@@ -52,6 +52,7 @@ export function Overview() {
           </div>
         </div>
       </Panel>
+      <AcnBaselineStrip live={live} />
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <Panel title="Energy mix through the day" sub="Supply to site demand, kW, 15-min steps. Shaded area is forecast." right={<Link to="/app/energy" className="text-sm font-medium text-[#0d7584] hover:underline">Energy manager</Link>}>
           <TimeChart title="Energy mix" summary={`Today solar supplied ${t.pvToLoad.toFixed(0)} kWh, the battery ${t.storageToLoad.toFixed(0)} kWh and the grid ${t.grid.toFixed(0)} kWh.`} unit="kW" height={260}
@@ -99,6 +100,39 @@ export function Overview() {
       </div>
     </>
   );
+}
+
+function AcnBaselineStrip({
+  live,
+}: {
+  live: ReturnType<typeof useStore>["live"]
+}) {
+  const source = live?.sources.find((item) => item.source === "ACN-Data")
+  const baseline = live?.parameters.acnHistoricalBaseline
+  const verified = source?.status === "connected" && source.usable === true && baseline
+
+  return (
+    <Panel
+      title="ACN historical benchmark"
+      sub="Mapped from the connected ACN-Data response; kept separate from the modelled fleet."
+      className="mb-5 border-cyan/30"
+      right={<ProvBadge p={verified ? "real" : "not-connected"} />}
+    >
+      {verified ? (
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+          <Metric label="Charging records" value={baseline.recordCount} hint="historical sessions" />
+          <Metric label="Delivered energy" value={baseline.totalDeliveredKWh.toFixed(1)} unit="kWh" hint="ACN baseline" />
+          <Metric label="Average session" value={baseline.averageSessionEnergyKWh?.toFixed(1) ?? "—"} unit="kWh" hint="normalized ACN value" />
+          <Metric label="Stations observed" value={baseline.stationCount} hint="historical station IDs" />
+        </div>
+      ) : (
+        <p className="text-sm text-muted">
+          ACN metrics appear here after the backend returns a usable response. Fleet readiness,
+          vehicle SoC, charger state, and schedule values remain explicitly modelled.
+        </p>
+      )}
+    </Panel>
+  )
 }
 
 type SortKey = "id" | "soc" | "departure" | "soh" | "energy";
@@ -295,7 +329,7 @@ export function VehicleDetail({ id }: { id: string }) {
 }
 
 export function Scheduler() {
-  const { sim, a, change, setA, toast } = useStore();
+  const { sim, a, change, setA, toast, live } = useStore();
   const [sel, setSel] = useState<string | null>(sim.sessions[0]?.vehicleId ?? null);
   const [edit, setEdit] = useState<string | null>(null);
   const cmp = useMemo(() => compareStrategies(a), [a]);
@@ -327,6 +361,7 @@ export function Scheduler() {
         <Metric label="Peak grid import" value={`${sim.totals.peakGrid.toFixed(1)} kW`} hint={`limit ${a.gridLimitKW} kW${sim.totals.exceedSteps ? ` · ▲ exceeded ${sim.totals.exceedSteps * 15} min` : ""}`} tone={sim.totals.exceedSteps ? "err" : undefined} />
         <Metric label="Estimated cost" value={inr(sim.totals.cost)} hint="grid import, demo day" />
       </div>
+      <AcnBaselineStrip live={live} />
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
         <Panel title="Charger lanes" sub={`${fmtT(NOW)}–24:00 · ${sim.sessions.length} sessions · select a bar for its rationale`} className="min-w-0">
           <div className="overflow-x-auto">

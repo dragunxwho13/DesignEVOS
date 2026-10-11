@@ -12,6 +12,7 @@ export function DriverHome() {
   const session = vehicle?.session
   const tariff = tariffAt(NOW, a)
   const liveSource = live?.sources.find((source) => source.usable)
+  const acnBaseline = live?.parameters.acnHistoricalBaseline
   const ready = vehicle ? vehicle.projectedSoC >= vehicle.requiredSoC : false
   const eta = session ? fmtT(session.end) : "No active session"
   const statusText = session?.start !== undefined && session.start <= NOW && session.end > NOW
@@ -65,6 +66,17 @@ export function DriverHome() {
               <div className="space-y-3 text-sm"><div className="flex justify-between"><span className="text-muted">Charger</span><b>{session.chargerId}</b></div><div className="flex justify-between"><span className="text-muted">Power</span><b>{session.powerKW} kW</b></div><div className="flex justify-between"><span className="text-muted">Window</span><b>{fmtT(session.start)}–{fmtT(session.end)}</b></div><div className="flex justify-between"><span className="text-muted">Departure</span><b>{fmtT(vehicle.departure)}</b></div></div>
             </div>
           ) : <Empty title="No charging session">Your manager has not scheduled a session for this vehicle.</Empty>}
+        </Panel>
+        <Panel title="Charging benchmark" sub="Historical ACN-Data context for the site, not this vehicle's live telemetry.">
+          {acnBaseline ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Metric label="Historical sessions" value={acnBaseline.recordCount} />
+              <Metric label="Average delivered" value={`${acnBaseline.averageSessionEnergyKWh?.toFixed(1) ?? "—"} kWh`} />
+              <Metric label="Observed stations" value={acnBaseline.stationCount} />
+            </div>
+          ) : (
+            <p className="text-sm text-muted">ACN benchmark data will appear when the backend returns a usable response.</p>
+          )}
         </Panel>
         <Panel title="Available chargers" sub="Use the closest compatible plug; availability is refreshed with the workspace.">
           <ul className="divide-y divide-line">{nearby.map((charger) => <li key={charger.id} className="flex items-center gap-3 py-3 first:pt-0"><PlugZap size={17} className={charger.status === "Available" ? "text-teal" : "text-muted"} /><div className="min-w-0 flex-1"><p className="font-medium">{charger.id} <span className="text-xs font-normal text-muted">· {charger.type}</span></p><p className="text-xs text-muted"><MapPin size={11} className="mr-1 inline" />{charger.distance} · {charger.power}</p></div><Status s={charger.status === "Available" ? "Ready" : "Charging"} /></li>)}</ul>
