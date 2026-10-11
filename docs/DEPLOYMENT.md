@@ -1,68 +1,120 @@
-# EVOS deployment status
+# EVOS deployment
 
 ## Current verified state
 
-The existing frontend is a static Vite application:
+EVOS consists of a Vite frontend and a stateless Node.js ESM backend.
+
+```text
+Frontend: http://localhost:8443
+Backend:  http://localhost:8787
+```
+
+Build and test from the repository root:
 
 ```text
 pnpm install
+node --test backend/tests/*.test.mjs
+pnpm exec tsc --noEmit -p .
 pnpm run build
 ```
 
-The build completed successfully during the repository audit and writes `dist/`. A cloud
-deployment was not performed, so no Vercel deployment is claimed.
+The backend exposes health, source, live-parameter, scheduling, energy, scenario, analytics,
+realtime, and SSE routes. It does not persist fleet changes, runs, or telemetry.
 
-The new `backend/` engine is dependency-free Node ESM and can be verified with:
+Set the public frontend variables `VITE_BACKEND_URL`, `VITE_SITE_LATITUDE`, and
+`VITE_SITE_LONGITUDE` as needed. Set `ACN_DATA_API_KEY` only in the backend environment.
+
+## One-command Windows deployment
+
+Run `run-local.bat` from the repository root. It starts or reuses the backend and frontend,
+waits for readiness, and opens the website.
+
+The launcher uses:
 
 ```text
-node --test backend/tests/*.test.mjs
+node --env-file=backend/.env backend/server.mjs
+pnpm run dev -- --host 0.0.0.0 --port 8443
 ```
 
-The backend also exposes a stateless local HTTP API:
+Create `backend/.env` from `backend/.env.example`. The file is ignored by Git and must never be
+committed.
+
+## Manual startup
+
+Backend:
 
 ```text
-node backend/server.mjs
+node --env-file=backend/.env backend/server.mjs
 ```
 
-Current route surface: `GET /api/v1/health`, `GET /api/v1/vehicles`, `GET /api/v1/chargers`,
-`GET /api/v1/sources`, `POST /api/v1/scheduler/plan`, `POST /api/v1/energy/dispatch`,
-`POST /api/v1/scenarios/run`, `GET /api/v1/analytics/summary`, `GET /api/v1/realtime`, and
-`GET /api/v1/stream`, plus `GET /api/v1/live/parameters`. It does not yet persist
-runs or require environment variables. Demo read/scenario data is explicitly labelled simulated.
+Frontend, in a second terminal:
 
-Set the public frontend variable `VITE_BACKEND_URL` to the backend origin. Set
-`VITE_SITE_LATITUDE` and `VITE_SITE_LONGITUDE` to the actual site location. Set the secret
-`ACN_DATA_API_KEY` only in the backend environment; never set it in frontend/Vite variables.
+```text
+pnpm run dev -- --host 0.0.0.0 --port 8443
+```
 
-## Pending backend deployment decision
+Check readiness:
 
-The repository contains a Supabase Deno Edge Function scaffold, not a Vercel backend. A
-persistent simulation process, broker, WebSocket server, or background loop must not be assumed
-to run inside a standard Vercel function. The compatible target architecture is a stateless,
-step-triggered API backed by a persistent database, but the database/provider decision is still
-pending.
+```text
+http://localhost:8787/api/v1/health
+http://localhost:8787/api/v1/live/parameters
+http://localhost:8443/
+```
 
-No `vercel.json` was added because the current frontend already builds without one and the
-backend runtime has not been selected.
+## Environment variables
 
-## Future environment variables
+### Frontend
 
-None are required by the provider-neutral engine. When adapters are implemented, document only
-variables actually read by server code. Candidate names require verification before use:
+```dotenv
+VITE_BACKEND_URL=http://localhost:8787
+VITE_SITE_LATITUDE=28.6139
+VITE_SITE_LONGITUDE=77.209
+```
 
-- `ACN_DATA_API_KEY` — secret, server-side only, if the official ACN access method confirms it.
-- Existing Supabase server variables — secret values must remain server-side.
-- `CORS_ORIGINS` or `FRONTEND_ORIGIN` — non-secret deployment configuration.
-- `APP_ENV` and `LOG_LEVEL` — non-secret runtime configuration.
+These values are public and are bundled into the browser.
 
-Set secrets in the backend host’s server environment and Vercel project environment settings
-only after the runtime is selected. Never use `VITE_*` or `NEXT_PUBLIC_*` for private values.
+### Backend
 
-## Remaining deployment checks
+```dotenv
+ACN_DATA_API_KEY=replace_me_locally
+ACN_DATA_BASE_URL=https://ev.caltech.edu/api/v1
+NASA_POWER_BASE_URL=https://power.larc.nasa.gov/api/temporal
+PVGIS_BASE_URL=https://re.jrc.ec.europa.eu/api/v5_3
+CORS_ORIGINS=http://localhost:8443,http://127.0.0.1:8443
+PORT=8787
+DEFAULT_TARIFF_INR=
+GRID_CARBON_G_PER_KWH=
+TARIFF_PROFILE_JSON=
+CARBON_PROFILE_JSON=
+```
 
-1. Confirm whether Supabase Edge Functions remain the backend runtime.
-2. Confirm database/project access and migration workflow.
-3. Add stateless API routes and contract tests.
-4. Configure an origin allowlist instead of wildcard CORS.
-5. Run the backend test suite and frontend build together.
-6. Deploy a preview, inspect logs, and verify health/readiness and source-status routes.
+Tariff and grid-carbon values are explicit server configuration. If they are absent, the API
+reports deterministic fallback metadata instead of presenting the fallback as live data.
+
+## Hosted deployment considerations
+
+No hosted deployment is claimed. The current backend is a stateless prototype and is not a
+production telemetry, control, or multi-tenant platform.
+
+A production deployment needs:
+
+1. a selected backend runtime and secret manager;
+2. authenticated persistent fleet and user storage;
+3. origin allowlisting and request validation;
+4. observability, rate limiting, and audit logging;
+5. validated telemetry ingestion before claiming real-time operations;
+6. a separate OCPP/MQTT/charger-control boundary if physical control is required.
+
+The repository contains a Supabase Edge Function scaffold, but the Node backend is the currently
+implemented runtime. Do not assume a persistent process, broker, WebSocket server, or background
+loop can run inside a standard Vercel function.
+
+## Deployment checklist
+
+- [ ] Keep ACN credentials server-side.
+- [ ] Configure `CORS_ORIGINS` for the deployed frontend origin.
+- [ ] Set `VITE_BACKEND_URL` to the deployed backend origin.
+- [ ] Verify `/api/v1/health`.
+- [ ] Verify `/api/v1/live/parameters` and source provenance.
+- [ ] Run backend tests, TypeScript validation, and the production build.
+- [ ] Confirm that the UI still labels historical, modelled, calculated, and simulated data.
