@@ -1,0 +1,302 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - link "EVOS overview" [ref=e5] [cursor=pointer]:
+      - /url: "#/app/overview"
+      - generic [ref=e6]: EVOS
+    - navigation "Application" [ref=e9]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: Operate
+        - list [ref=e12]:
+          - listitem [ref=e13]:
+            - link "Overview" [ref=e14] [cursor=pointer]:
+              - /url: "#/app/overview"
+          - listitem [ref=e22]:
+            - link "Fleet" [ref=e23] [cursor=pointer]:
+              - /url: "#/app/fleet"
+          - listitem [ref=e30]:
+            - link "Scheduler" [ref=e31] [cursor=pointer]:
+              - /url: "#/app/scheduler"
+          - listitem [ref=e37]:
+            - link "Energy" [ref=e38] [cursor=pointer]:
+              - /url: "#/app/energy"
+          - listitem [ref=e42]:
+            - link "System View" [ref=e43] [cursor=pointer]:
+              - /url: "#/app/system"
+      - generic [ref=e50]:
+        - paragraph [ref=e51]: Analyse
+        - list [ref=e52]:
+          - listitem [ref=e53]:
+            - link "Battery Health" [ref=e54] [cursor=pointer]:
+              - /url: "#/app/battery"
+          - listitem [ref=e58]:
+            - link "Forecasts" [ref=e59] [cursor=pointer]:
+              - /url: "#/app/forecasts"
+          - listitem [ref=e63]:
+            - link "Sustainability" [ref=e64] [cursor=pointer]:
+              - /url: "#/app/sustainability"
+          - listitem [ref=e69]:
+            - link "Explainability" [ref=e70] [cursor=pointer]:
+              - /url: "#/app/explain"
+          - listitem [ref=e79]:
+            - link "Maintenance & Faults" [ref=e80] [cursor=pointer]:
+              - /url: "#/app/maintenance"
+      - generic [ref=e84]:
+        - paragraph [ref=e85]: Plan
+        - list [ref=e86]:
+          - listitem [ref=e87]:
+            - link "Scenarios" [ref=e88] [cursor=pointer]:
+              - /url: "#/app/scenarios"
+          - listitem [ref=e92]:
+            - link "Experiments" [ref=e93] [cursor=pointer]:
+              - /url: "#/app/experiments"
+          - listitem [ref=e97]:
+            - link "Alerts 4 open alerts" [ref=e98] [cursor=pointer]:
+              - /url: "#/app/alerts"
+              - generic [ref=e102]: Alerts
+              - generic "4 open alerts" [ref=e103]: "4"
+      - generic [ref=e104]:
+        - generic [ref=e105]:
+          - paragraph [ref=e106]: Workspace
+          - generic [ref=e107]:
+            - link "Manager" [ref=e108] [cursor=pointer]:
+              - /url: "#/app/overview"
+            - link "Driver" [ref=e109] [cursor=pointer]:
+              - /url: "#/app/driver"
+        - link "No usable dataset response · fallback active" [ref=e110] [cursor=pointer]:
+          - /url: "#/app/datasets"
+        - list [ref=e112]:
+          - listitem [ref=e113]:
+            - link "Driver view" [ref=e114] [cursor=pointer]:
+              - /url: "#/app/driver"
+          - listitem [ref=e119]:
+            - link "Datasets & Sources" [ref=e120] [cursor=pointer]:
+              - /url: "#/app/datasets"
+          - listitem [ref=e126]:
+            - link "Configuration" [ref=e127] [cursor=pointer]:
+              - /url: "#/app/settings"
+          - listitem [ref=e132]:
+            - link "Methodology" [ref=e133] [cursor=pointer]:
+              - /url: "#/app/methodology"
+        - link "Back to website" [ref=e137] [cursor=pointer]:
+          - /url: "#/"
+  - main [ref=e140]:
+    - generic [ref=e142]:
+      - generic [ref=e143]:
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - generic [ref=e146]: Illustrative simulation
+            - generic [ref=e148]: Prototype workspace · Mon · now 10:00
+          - heading "Overview" [level=1] [ref=e149]
+          - paragraph [ref=e150]: Readiness, charging and energy for the demo depot at a glance. Select any panel to go deeper.
+        - link "Run a scenario" [ref=e151] [cursor=pointer]:
+          - /url: "#/app/scenarios"
+      - generic [ref=e156]:
+        - generic [ref=e157]:
+          - generic [ref=e158]: Fleet readiness for upcoming departures
+          - generic [ref=e159]:
+            - text: "2"
+            - generic [ref=e160]: / 20 ready
+          - img "Ready 2, Charging 5, Scheduled 8, At risk 1, Idle 3, Unavailable 1" [ref=e161]
+          - list [ref=e168]:
+            - listitem [ref=e169]:
+              - text: Ready
+              - generic [ref=e171]: "2"
+            - listitem [ref=e172]:
+              - text: Charging
+              - generic [ref=e174]: "5"
+            - listitem [ref=e175]:
+              - text: Scheduled
+              - generic [ref=e177]: "8"
+            - listitem [ref=e178]:
+              - text: At risk
+              - generic [ref=e180]: "1"
+            - listitem [ref=e181]:
+              - text: Idle
+              - generic [ref=e183]: "3"
+            - listitem [ref=e184]:
+              - text: Unavailable
+              - generic [ref=e186]: "1"
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - generic [ref=e189]: Active sessions
+            - generic [ref=e190]: "5"
+            - generic [ref=e191]: next 11:45
+          - generic [ref=e192]:
+            - generic [ref=e193]: Demand now
+            - generic [ref=e194]: 89kW
+            - generic [ref=e195]: limit 80 kW grid
+          - generic [ref=e196]:
+            - generic [ref=e197]: Renewable share
+            - generic [ref=e198]: 59%
+            - generic [ref=e199]: solar-derived, today
+          - generic [ref=e200]:
+            - generic [ref=e201]: Estimated cost
+            - generic [ref=e202]: ₹2,713
+            - generic [ref=e203]: grid import, today
+      - generic [ref=e204]:
+        - generic [ref=e205]:
+          - generic [ref=e206]:
+            - heading "ACN historical benchmark" [level=2] [ref=e207]
+            - paragraph [ref=e208]: Mapped from the connected ACN-Data response; kept separate from the modelled fleet.
+          - generic [ref=e209]:
+            - generic [aria-hidden] [ref=e210]: ×
+            - text: Not connected
+        - paragraph [ref=e214]: ACN metrics appear here after the backend returns a usable response. Fleet readiness, vehicle SoC, charger state, and schedule values remain explicitly modelled.
+      - generic [ref=e215]:
+        - generic [ref=e216]:
+          - generic [ref=e217]:
+            - generic [ref=e218]:
+              - heading "Energy mix through the day" [level=2] [ref=e219]
+              - paragraph [ref=e220]: Supply to site demand, kW, 15-min steps. Shaded area is forecast.
+            - link "Energy manager" [ref=e221] [cursor=pointer]:
+              - /url: "#/app/energy"
+          - figure "Energy mix. Today solar supplied 495 kWh, the battery 53 kWh and the grid 387 kWh." [ref=e225]:
+            - paragraph [ref=e227]:
+              - generic [ref=e229]: "In short: Today solar supplied 495 kWh, the battery 53 kWh and the grid 387 kWh."
+            - generic [aria-hidden] [ref=e230]:
+              - generic [ref=e231]: PV to load
+              - generic [ref=e233]: Storage
+              - generic [ref=e235]: Grid
+            - img "Energy mix. Today solar supplied 495 kWh, the battery 53 kWh and the grid 387 kWh." [ref=e238]:
+              - generic [ref=e239]: "0.0"
+              - generic [ref=e241]: "50"
+              - generic [ref=e243]: "100"
+              - generic [ref=e245]: kW
+              - generic [ref=e246]: 00:00
+              - generic [ref=e247]: 08:00
+              - generic [ref=e248]: 16:00
+              - generic [ref=e249]: Now · forecast →
+              - generic [ref=e255]: Grid limit 80 kW
+        - generic [ref=e257]:
+          - generic [ref=e258]:
+            - generic [ref=e259]:
+              - heading "Alerts" [level=2] [ref=e260]
+              - paragraph [ref=e261]: 9 open
+            - link "All alerts" [ref=e262] [cursor=pointer]:
+              - /url: "#/app/alerts"
+          - list [ref=e266]:
+            - listitem [ref=e267]:
+              - generic [ref=e268]:
+                - generic [ref=e269]:
+                  - generic [aria-hidden] [ref=e270]: ▲
+                  - text: Critical
+                - generic [ref=e271]: 10:00
+              - paragraph [ref=e272]: VAN-01 · May miss departure target
+            - listitem [ref=e273]:
+              - generic [ref=e274]:
+                - generic [ref=e275]:
+                  - generic [aria-hidden] [ref=e276]: ▲
+                  - text: Critical
+                - generic [ref=e277]: 07:45
+              - paragraph [ref=e278]: AC-4 · Charger fault (simulated)
+            - listitem [ref=e279]:
+              - generic [ref=e280]:
+                - generic [ref=e281]:
+                  - generic [aria-hidden] [ref=e282]: ◆
+                  - text: Warning
+                - generic [ref=e283]: 06:30
+              - paragraph [ref=e284]: "CRT-02 · Maintenance flag: estimated SoH"
+        - generic [ref=e285]:
+          - 'button "Charging queue Next: VAN-01 at 11:45 · 6 queued" [ref=e287]':
+            - generic [ref=e290]:
+              - generic [ref=e291]: Charging queue
+              - generic [ref=e292]: "Next: VAN-01 at 11:45 · 6 queued"
+          - table [ref=e295]:
+            - rowgroup [ref=e296]:
+              - row [ref=e297]:
+                - columnheader "Vehicle" [ref=e298]
+                - columnheader "Charger" [ref=e299]
+                - columnheader "Window" [ref=e300]
+                - columnheader "Departure" [ref=e301]
+                - columnheader "Status" [ref=e302]
+            - rowgroup [ref=e303]:
+              - row [ref=e304] [cursor=pointer]:
+                - cell [ref=e305]:
+                  - link "VAN-01" [ref=e306]:
+                    - /url: "#/app/fleet/VAN-01"
+                - cell "DC-2" [ref=e307]
+                - cell "11:45–13:00" [ref=e308]
+                - cell "12:00" [ref=e309]
+                - cell [ref=e310]:
+                  - generic [ref=e311]:
+                    - generic [aria-hidden] [ref=e312]: ▲
+                    - text: At risk
+              - row [ref=e313] [cursor=pointer]:
+                - cell [ref=e314]:
+                  - link "VAN-02" [ref=e315]:
+                    - /url: "#/app/fleet/VAN-02"
+                - cell "AC-1" [ref=e316]
+                - cell "11:45–14:30" [ref=e317]
+                - cell "16:30" [ref=e318]
+                - cell [ref=e319]:
+                  - generic [ref=e320]:
+                    - generic [aria-hidden] [ref=e321]: ○
+                    - text: Scheduled
+              - row [ref=e322] [cursor=pointer]:
+                - cell [ref=e323]:
+                  - link "CRT-03" [ref=e324]:
+                    - /url: "#/app/fleet/CRT-03"
+                - cell "AC-3" [ref=e325]
+                - cell "12:00–12:45" [ref=e326]
+                - cell "15:00" [ref=e327]
+                - cell [ref=e328]:
+                  - generic [ref=e329]:
+                    - generic [aria-hidden] [ref=e330]: ○
+                    - text: Scheduled
+              - row [ref=e331] [cursor=pointer]:
+                - cell [ref=e332]:
+                  - link "BUS-03" [ref=e333]:
+                    - /url: "#/app/fleet/BUS-03"
+                - cell "DC-1" [ref=e334]
+                - cell "12:30–15:00" [ref=e335]
+                - cell "17:30" [ref=e336]
+                - cell [ref=e337]:
+                  - generic [ref=e338]:
+                    - generic [aria-hidden] [ref=e339]: ○
+                    - text: Scheduled
+              - row [ref=e340] [cursor=pointer]:
+                - cell [ref=e341]:
+                  - link "CRT-06" [ref=e342]:
+                    - /url: "#/app/fleet/CRT-06"
+                - cell "AC-2" [ref=e343]
+                - cell "12:30–13:30" [ref=e344]
+                - cell "17:00" [ref=e345]
+                - cell [ref=e346]:
+                  - generic [ref=e347]:
+                    - generic [aria-hidden] [ref=e348]: ○
+                    - text: Scheduled
+              - row [ref=e349] [cursor=pointer]:
+                - cell [ref=e350]:
+                  - link "VAN-03" [ref=e351]:
+                    - /url: "#/app/fleet/VAN-03"
+                - cell "AC-3" [ref=e352]
+                - cell "12:45–14:15" [ref=e353]
+                - cell "21:00" [ref=e354]
+                - cell [ref=e355]:
+                  - generic [ref=e356]:
+                    - generic [aria-hidden] [ref=e357]: ○
+                    - text: Scheduled
+        - generic [ref=e358]:
+          - button "Recent events 6 latest simulated events today" [ref=e360]:
+            - generic [ref=e363]:
+              - generic [ref=e364]: Recent events
+              - generic [ref=e365]: 6 latest simulated events today
+          - list [ref=e367]:
+            - listitem [ref=e368]:
+              - text: 10:00
+              - paragraph [ref=e370]: BUS-01 started charging on DC-1 at 30 kW
+            - listitem [ref=e371]:
+              - text: 10:00
+              - paragraph [ref=e373]: CRT-01 started charging on AC-1 at 3.3 kW
+            - listitem [ref=e374]:
+              - text: 10:00
+              - paragraph [ref=e376]: BUS-05 started charging on DC-2 at 30 kW
+            - listitem [ref=e377]:
+              - text: 10:00
+              - paragraph [ref=e379]: CRT-02 started charging on AC-2 at 3.3 kW
+            - listitem [ref=e380]:
+              - text: 10:00
+              - paragraph [ref=e382]: CRT-05 started charging on AC-3 at 3.3 kW
+            - listitem [ref=e383]:
+              - text: 10:00
+              - paragraph [ref=e385]: "VAN-01: May miss departure target"
