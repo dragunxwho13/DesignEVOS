@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
 react(),
       tailwindcss(),
+      evosBackendApi(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -46,6 +47,26 @@ react(),
     },
   }
 })
+
+/**
+ * Serves the EVOS Node backend (backend/server.mjs) under /api on the dev server, so the
+ * preview gets live NASA POWER / PVGIS / ACN data from the same origin without CORS or a
+ * second process. Production uses the same /api path on Vercel (see vercel.json).
+ */
+function evosBackendApi(): Plugin {
+  return {
+    name: 'evos-backend-api',
+    apply: 'serve',
+    configureServer(server) {
+      let handler: Promise<(req: unknown, res: unknown) => Promise<void>> | null = null
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/api/')) return next()
+        handler ??= import(path.resolve(__dirname, 'backend/server.mjs')).then((m) => m.handleRequest)
+        handler.then((handle) => handle(req, res)).catch(next)
+      })
+    },
+  }
+}
 
 type FigmaSiteConfiguration = {
   title?: string

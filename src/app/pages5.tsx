@@ -3,7 +3,7 @@ import { Download, Play } from "lucide-react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link } from "../lib/router";
-import { Panel, Badge, Button, Toggle, Status, cx, ProvBadge, Disclosure, Field, inputCls, Empty, InfoTip, Spinner } from "../components/ui";
+import { Panel, Badge, Button, Toggle, Status, cx, ProvBadge, Disclosure, Field, inputCls, Empty, InfoTip, Spinner, TextLink } from "../components/ui";
 import { Bars } from "../components/charts";
 import { CHARGERS, FAULTS, STRATEGIES, DAY_NAMES, DAY_SOLAR, simulate, inr, fmtT, NOW, type Assumptions, type Strategy } from "../lib/sim";
 import { ALGORITHM_VERSION } from "../services";
@@ -89,7 +89,7 @@ export function Maintenance() {
           </ul>
         </Panel>
       </div>
-      <Panel className="mt-5" title="Open maintenance & fault warnings" sub="Warnings are not confirmed failures unless marked Critical with a confirmed source" right={<Link to="/app/alerts" className="text-sm font-medium text-[#0d7584] hover:underline">All alerts</Link>}>
+      <Panel className="mt-5" title="Open maintenance & fault warnings" sub="Warnings are not confirmed failures unless marked Critical with a confirmed source" right={<TextLink to="/app/alerts">All alerts</TextLink>}>
         {open.length ? (
           <ul className="divide-y divide-line">
             {open.map((x) => (

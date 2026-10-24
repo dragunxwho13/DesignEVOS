@@ -9,8 +9,8 @@ type Variant = "primary" | "secondary" | "ghost" | "dark" | "onDark";
 const btnBase =
   "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-[background-color,color,border-color,transform,box-shadow] duration-150 ease-out active:scale-[0.98] disabled:opacity-45 disabled:pointer-events-none select-none whitespace-nowrap";
 const btnVariants: Record<Variant, string> = {
-  primary: "btn-lift bg-cyan text-deep hover:bg-[#2cc8d9] shadow-[0_1px_0_rgba(255,255,255,.3)_inset]",
-  secondary: "border border-line bg-white text-ink hover:border-[#b8c6d6] hover:bg-soft",
+  primary: "btn-lift bg-cyan text-deep hover:bg-cyan-hover shadow-[0_1px_0_rgba(255,255,255,.3)_inset]",
+  secondary: "border border-line bg-white text-ink hover:border-line-strong hover:bg-soft",
   ghost: "text-muted hover:text-ink hover:bg-soft",
   dark: "btn-lift bg-deep text-white hover:bg-deep2",
   onDark: "border border-white/20 text-white hover:bg-white/10 hover:border-white/35",
@@ -30,10 +30,10 @@ export function ButtonLink({
 
 type Tone = "ok" | "warn" | "err" | "info" | "neutral" | "cyan";
 const tones: Record<Tone, string> = {
-  ok: "bg-[#e3f2ec] text-ok",
-  warn: "bg-[#f8eedd] text-[#8a5f1f]",
-  err: "bg-[#f6e3e2] text-err",
-  info: "bg-[#e2f4f7] text-[#0d7584]",
+  ok: "bg-ok-soft text-ok",
+  warn: "bg-warn-soft text-warn-ink",
+  err: "bg-err-soft text-err",
+  info: "bg-info-soft text-info-ink",
   neutral: "bg-soft text-muted",
   cyan: "bg-mint text-[#1d6f66]",
 };
@@ -75,7 +75,7 @@ export function Panel({ title, sub, right, children, className, pad = true, coll
   const toggle = () => setOpen((o) => { sessionStorage.setItem(key, o ? "0" : "1"); return !o; });
   const bodyId = collapsible ? `${key}-body` : undefined;
   return (
-    <section className={cx("min-w-0 rounded-xl border border-line bg-white", className)}>
+    <section className={cx("min-w-0 rounded-xl border border-line bg-white shadow-card", className)}>
       {(title || right) && (
         <header className={cx("flex flex-wrap items-start justify-between gap-3 px-5 pt-4", open || !collapsible ? "pb-3" : "pb-4")}>
           {collapsible ? (
@@ -112,7 +112,7 @@ export function Metric({ label, value, unit, hint, tone, large }: { label: strin
         {typeof value === "string" || typeof value === "number" ? <Tween value={value} /> : value}
         {unit && <span className="ml-1 text-sm font-medium text-muted">{unit}</span>}
       </div>
-      {hint && <div className={cx("mt-1 text-xs", tone === "err" ? "text-err" : tone === "warn" ? "text-[#8a5f1f]" : tone === "ok" ? "text-ok" : "text-muted")}>{hint}</div>}
+      {hint && <div className={cx("mt-1 text-xs", tone === "err" ? "text-err" : tone === "warn" ? "text-warn-ink" : tone === "ok" ? "text-ok" : "text-muted")}>{hint}</div>}
     </div>
   );
 }
@@ -179,7 +179,7 @@ export function Field({ label, help, error, children, id }: { label: string; hel
     </div>
   );
 }
-export const inputCls = "h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink tnum transition-colors duration-150 hover:border-[#b8c6d6] focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/25 aria-[invalid=true]:border-err";
+export const inputCls = "h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink tnum transition-colors duration-150 hover:border-line-strong focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/25 aria-[invalid=true]:border-err";
 
 export function Slider({ id, value, min, max, step, onChange, fmt }: { id: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt: (v: number) => string }) {
   const pct = ((value - min) / (max - min)) * 100;
@@ -200,6 +200,16 @@ export function Toggle({ checked, onChange, label, id }: { checked: boolean; onC
       <span className={cx("absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ease-out", checked && "translate-x-5")} />
     </button>
   );
+}
+
+/** Inline navigational link in body copy or panel headers. */
+export function TextLink({ to, children, className }: { to: string; children: ReactNode; className?: string }) {
+  return <Link to={to} className={cx("group/tl inline-flex items-center gap-1 rounded text-sm font-medium text-info-ink hover:text-ink", className)}>{children}<span aria-hidden className="transition-transform duration-150 ease-out group-hover/tl:translate-x-0.5">→</span></Link>;
+}
+
+/** Keyboard shortcut hint. */
+export function Kbd({ children, dark }: { children: ReactNode; dark?: boolean }) {
+  return <kbd className={cx("inline-grid h-5 min-w-5 place-items-center rounded border px-1 font-sans text-[10.5px] font-medium", dark ? "border-white/15 bg-white/5 text-white/60" : "border-line bg-soft text-muted")}>{children}</kbd>;
 }
 
 export function Note({ children, title = "Calculation note" }: { children: ReactNode; title?: string }) {
@@ -302,7 +312,7 @@ export function DataState<T>({ state, children, emptyTitle = "No records availab
     );
   if (state.status === "error")
     return (
-      <div role="alert" className="m-5 flex flex-wrap items-start gap-3 rounded-lg border border-err/30 bg-[#fbf1f0] p-4 text-sm">
+      <div role="alert" className="m-5 flex flex-wrap items-start gap-3 rounded-lg border border-err/30 bg-err-soft/60 p-4 text-sm">
         <AlertTriangle size={18} className="mt-0.5 text-err" aria-hidden />
         <div className="flex-1"><p className="font-medium text-ink">Could not load data</p><p className="mt-0.5 text-muted">{state.error}</p></div>
         {state.retry && <Button size="sm" variant="secondary" onClick={state.retry}>Try again</Button>}
@@ -319,7 +329,7 @@ export function DataState<T>({ state, children, emptyTitle = "No records availab
   return (
     <>
       {(state.partial || state.stale) && (
-        <p role="status" className="mx-5 mt-4 rounded-md bg-[#f8eedd] px-3 py-2 text-xs text-[#8a5f1f]">◆ {state.partial ?? state.stale}</p>
+        <p role="status" className="mx-5 mt-4 rounded-md bg-warn-soft px-3 py-2 text-xs text-warn-ink">◆ {state.partial ?? state.stale}</p>
       )}
       {children(state.data)}
     </>

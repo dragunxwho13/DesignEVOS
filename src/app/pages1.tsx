@@ -1,27 +1,30 @@
 import { useMemo, useState } from "react";
-import { Search, ArrowRight, ArrowUpDown, ChevronLeft } from "lucide-react";
+import { Search, ArrowRight, ArrowUpDown, ChevronLeft, Plus, Trash2, AlertTriangle, Bell, PlugZap } from "lucide-react";
 import { PageHeader } from "./Shell";
 import { useStore } from "../lib/store";
 import { Link, navigate } from "../lib/router";
-import { Panel, Metric, Status, Badge, Segmented, Empty, Note, inputCls, cx, ButtonLink, Button, Disclosure, InfoTip, Drawer, DataState, useLoad, ProvBadge, Tween } from "../components/ui";
+import { Panel, Metric, Status, Badge, Segmented, Empty, Note, inputCls, cx, ButtonLink, Button, Disclosure, InfoTip, Drawer, DataState, useLoad, ProvBadge, Tween, TextLink } from "../components/ui";
 import ConstraintEditor from "./ConstraintEditor";
 import { getBackend } from "../services";
 import { TimeChart, Donut, Legend, C } from "../components/charts";
 import EnergySchematic from "../components/EnergySchematic";
-import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, STRATEGIES, compareStrategies, type Readiness, type VehicleState, type Strategy } from "../lib/sim";
+import { CHARGERS, NOW, STEPS, fmtT, inr, sohTrend, CHARGE_EFF, STRATEGIES, compareStrategies, type Readiness, type VehicleState, type Strategy, type VClass, type VehicleSpec } from "../lib/sim";
 
 const hourLabels = (from = 0) => Array.from({ length: STEPS - from }, (_, i) => fmtT(i + from));
 
 export function Overview() {
-  const { sim, alerts, acked } = useStore();
+  const { sim, alerts, acked, live } = useStore();
   const t = sim.totals;
   const now = sim.flows[NOW];
   const counts = (["Ready", "Charging", "Scheduled", "At risk", "Idle", "Unavailable"] as Readiness[]).map((r) => ({ r, n: sim.vehicles.filter((v) => v.readiness === r).length }));
-  const colors: Record<string, string> = { Ready: C.teal, Charging: C.cyan, Scheduled: "#9FB3C8", "At risk": C.err, Idle: "#D9E2EC", Unavailable: C.warn };
+  const colors: Record<string, string> = { Ready: C.teal, Charging: C.cyan, Scheduled: "var(--color-idle)", "At risk": C.err, Idle: "var(--color-line)", Unavailable: C.warn };
+  const total = Math.max(1, sim.vehicles.length);
+  const atRisk = sim.vehicles.filter((v) => v.readiness === "At risk" || (v.session && v.projectedSoC < v.requiredSoC)).sort((x, y) => x.departure - y.departure);
   const ready = counts[0].n;
   const activeSessions = sim.sessions.filter((s) => s.start <= NOW && s.end > NOW);
   const queue = sim.sessions.filter((s) => s.start > NOW).sort((a, b) => a.start - b.start).slice(0, 6);
-  const openAlerts = alerts.filter((a) => !acked.has(a.id));
+  // Same rule as the navigation badge: unacknowledged, actionable (non-Info) alerts.
+  const openAlerts = alerts.filter((a) => !acked.has(a.id) && a.severity !== "Info");
   const events = [
     ...sim.sessions.filter((s) => s.start <= NOW).map((s) => ({ t: s.start, text: `${s.vehicleId} started charging on ${s.chargerId} at ${s.powerKW} kW` })),
     ...alerts.filter((a) => a.time <= NOW).map((a) => ({ t: a.time, text: `${a.asset}: ${a.title}` })),
@@ -36,9 +39,9 @@ export function Overview() {
         <div className="grid gap-8 lg:grid-cols-[1.3fr_2fr]">
           <div>
             <div className="text-xs font-medium text-muted">Fleet readiness for upcoming departures</div>
-            <div className="tnum mt-1 text-5xl font-semibold tracking-tight"><Tween value={ready} /><span className="text-xl text-muted"> / 20 ready</span></div>
-            <div className="mt-4 flex h-2.5 overflow-hidden rounded-full" role="img" aria-label={counts.map((c) => `${c.r} ${c.n}`).join(", ")}>
-              {counts.map((c) => c.n > 0 && <div key={c.r} style={{ width: `${c.n * 5}%`, background: colors[c.r], transition: "width 600ms cubic-bezier(0.65,0,0.35,1)" }} />)}
+            <div className="tnum mt-1 text-5xl font-semibold tracking-tight"><Tween value={ready} /><span className="text-xl text-muted"> / {sim.vehicles.length} ready</span></div>
+            <div className="mt-4 flex h-2.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={counts.map((c) => `${c.r} ${c.n}`).join(", ")}>
+              {counts.map((c) => c.n > 0 && <div key={c.r} style={{ width: `${(c.n / total) * 100}%`, background: colors[c.r], transition: "width 600ms cubic-bezier(0.65,0,0.35,1)" }} />)}
             </div>
             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
               {counts.map((c) => <li key={c.r} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: colors[c.r] }} />{c.r} <span className="tnum font-medium text-ink"><Tween value={c.n} /></span></li>)}
@@ -52,8 +55,9 @@ export function Overview() {
           </div>
         </div>
       </Panel>
+      <AcnBaselineStrip live={live} />
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
-        <Panel title="Energy mix through the day" sub="Supply to site demand, kW, 15-min steps. Shaded area is forecast." right={<Link to="/app/energy" className="text-sm font-medium text-[#0d7584] hover:underline">Energy manager</Link>}>
+        <Panel title="Energy mix through the day" sub="Supply to site demand, kW, 15-min steps. Shaded area is forecast." right={<TextLink to="/app/energy">Energy manager</TextLink>}>
           <TimeChart title="Energy mix" summary={`Today solar supplied ${t.pvToLoad.toFixed(0)} kWh, the battery ${t.storageToLoad.toFixed(0)} kWh and the grid ${t.grid.toFixed(0)} kWh.`} unit="kW" height={260}
             xLabels={hourLabels()} marker={{ x: NOW, label: "Now · forecast →" }} refLines={[{ y: sim.a.gridLimitKW, label: `Grid limit ${sim.a.gridLimitKW} kW`, color: C.err }]}
             series={[
@@ -62,15 +66,37 @@ export function Overview() {
               { key: "gr", label: "Grid", color: "#AEB9C7", kind: "area", stack: true, values: sim.flows.map((f) => f.grid) },
             ]} />
         </Panel>
-        <Panel title="Alerts" sub={`${openAlerts.length} open`} right={<Link to="/app/alerts" className="text-sm font-medium text-[#0d7584] hover:underline">All alerts</Link>}>
-          <ul className="divide-y divide-line">
-            {openAlerts.slice(0, 3).map((a) => (
-              <li key={a.id} className="py-3 first:pt-0"><div className="flex items-center justify-between gap-2"><Status s={a.severity} /><span className="tnum text-xs text-muted">{fmtT(a.time)}</span></div><p className="mt-1.5 text-sm font-medium">{a.asset} · {a.title}</p></li>
-            ))}
-            {!openAlerts.length && <Empty title="No open alerts">All alerts are acknowledged.</Empty>}
-          </ul>
+        <Panel title="Needs attention" sub={atRisk.length + openAlerts.length ? `${atRisk.length} ${atRisk.length === 1 ? "departure" : "departures"} at risk · ${openAlerts.length} open ${openAlerts.length === 1 ? "alert" : "alerts"}` : "Nothing needs action right now"} right={<TextLink to="/app/alerts">All alerts</TextLink>}>
+          {atRisk.length + openAlerts.length === 0 ? <Empty title="All clear">Every departure is covered and all alerts are acknowledged.</Empty> : (
+            <ul className="-mx-2 space-y-0.5">
+              {atRisk.slice(0, 3).map((v) => (
+                <li key={v.id}>
+                  <Link to={`/app/fleet/${v.id}`} className="group flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-soft">
+                    <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-err-soft text-err"><AlertTriangle size={15} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{v.id} may miss {v.requiredSoC}% by {fmtT(v.departure)}</span>
+                      <span className="tnum block truncate text-xs text-muted">{v.note}</span>
+                    </span>
+                    <ArrowRight size={14} aria-hidden className="shrink-0 text-muted opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:opacity-100" />
+                  </Link>
+                </li>
+              ))}
+              {openAlerts.filter((al) => !atRisk.slice(0, 3).some((v) => v.id === al.asset)).slice(0, Math.max(1, 4 - Math.min(3, atRisk.length))).map((al) => (
+                <li key={al.id}>
+                  <Link to="/app/alerts" className="group flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-soft">
+                    <span aria-hidden className={cx("grid h-8 w-8 shrink-0 place-items-center rounded-lg", al.severity === "Critical" ? "bg-err-soft text-err" : al.severity === "Warning" ? "bg-warn-soft text-warn-ink" : "bg-info-soft text-info-ink")}><Bell size={15} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{al.asset} · {al.title}</span>
+                      <span className="tnum block text-xs text-muted">{al.severity} · {fmtT(al.time)}</span>
+                    </span>
+                    <ArrowRight size={14} aria-hidden className="shrink-0 text-muted opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:opacity-100" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
-        <Panel title="Charging queue" sub={queue.length ? `Next: ${queue[0].vehicleId} at ${fmtT(queue[0].start)} · ${queue.length} queued` : "Nothing queued"} collapsible="ov-queue" defaultOpen={false} right={<Link to="/app/scheduler" className="text-sm font-medium text-[#0d7584] hover:underline">Scheduler</Link>}>
+        <Panel title="Charging queue" sub={queue.length ? `Next: ${queue[0].vehicleId} at ${fmtT(queue[0].start)} · ${queue.length} queued` : "Nothing queued"} collapsible="ov-queue" defaultOpen={false} right={<TextLink to="/app/scheduler">Scheduler</TextLink>}>
           {queue.length ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -101,9 +127,52 @@ export function Overview() {
   );
 }
 
+function AcnBaselineStrip({
+  live,
+}: {
+  live: ReturnType<typeof useStore>["live"]
+}) {
+  const source = live?.sources.find((item) => item.source === "ACN-Data")
+  const baseline = live?.parameters.acnHistoricalBaseline
+  const verified = source?.status === "connected" && source.usable === true && baseline
+
+  if (!verified)
+    return (
+      <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed border-line-strong bg-white/60 px-4 py-3 text-sm">
+        <PlugZap size={16} className="shrink-0 text-muted" aria-hidden />
+        <span className="font-medium text-ink">ACN historical benchmark</span>
+        <ProvBadge p="not-connected" />
+        <span className="min-w-0 flex-1 text-xs text-muted">No usable ACN-Data response. Fleet readiness, SoC, charger state and schedules on this page are modelled.</span>
+        <TextLink to="/app/datasets" className="text-xs">Source status</TextLink>
+      </div>
+    )
+  return (
+    <Panel
+      title="ACN historical benchmark"
+      sub="Mapped from the connected ACN-Data response; kept separate from the modelled fleet."
+      className="mb-5 border-cyan/30"
+      right={<ProvBadge p={verified ? "real" : "not-connected"} />}
+    >
+      {verified ? (
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+          <Metric label="Charging records" value={baseline.recordCount} hint="historical sessions" />
+          <Metric label="Delivered energy" value={baseline.totalDeliveredKWh.toFixed(1)} unit="kWh" hint="ACN baseline" />
+          <Metric label="Average session" value={baseline.averageSessionEnergyKWh?.toFixed(1) ?? "—"} unit="kWh" hint="normalized ACN value" />
+          <Metric label="Stations observed" value={baseline.stationCount} hint="historical station IDs" />
+        </div>
+      ) : (
+        <p className="text-sm text-muted">
+          ACN metrics appear here after the backend returns a usable response. Fleet readiness,
+          vehicle SoC, charger state, and schedule values remain explicitly modelled.
+        </p>
+      )}
+    </Panel>
+  )
+}
+
 type SortKey = "id" | "soc" | "departure" | "soh" | "energy";
 export function Fleet() {
-  const { a } = useStore();
+  const { a, addVehicle, removeVehicle, toast } = useStore();
   const state = useLoad(() => getBackend().vehicles.list(a), [a], (d) => d.length === 0);
   const list = state.status === "ready" ? state.data : [];
   const [q, setQ] = useState("");
@@ -111,6 +180,8 @@ export function Fleet() {
   const [st, setSt] = useState("All");
   const [sort, setSort] = useState<SortKey>("departure");
   const [dir, setDir] = useState<1 | -1>(1);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ id: "", cls: "Service van" as VClass, capKWh: "60", maxKW: "30", soc: "40", requiredSoC: "85", departure: "18:00" });
   const rows = useMemo(() => {
     const r = list.filter((v) =>
       (cls === "All" || v.cls === cls) && (st === "All" || v.readiness === st) &&
@@ -126,23 +197,41 @@ export function Fleet() {
   );
   return (
     <>
-      <PageHeader title="Fleet" sub={`${list.length || 20} simulated campus vehicles: 6 shuttle buses, 4 service vans and 10 utility carts. Select a vehicle for detail.`} right={<ProvBadge p="simulated" />} />
+      <PageHeader title="Fleet" sub={`${list.length} active vehicles in the local registry. Add, remove or inspect a vehicle; scheduler outputs recalculate from the current registry.`} right={<div className="flex items-center gap-2"><ProvBadge p="simulated" /><Button size="sm" onClick={() => setAdding((v) => !v)}><Plus size={14} />Add vehicle</Button></div>} />
+      {adding && <Panel className="mb-5" title="Add vehicle to registry" sub="This prototype saves the vehicle locally and includes it in scheduler calculations.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Vehicle ID<input className={inputCls} value={draft.id} placeholder="EV-021" onChange={(e) => setDraft({ ...draft, id: e.target.value.toUpperCase() })} /></label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Class<select className={inputCls} value={draft.cls} onChange={(e) => setDraft({ ...draft, cls: e.target.value as VClass })}><option>Shuttle bus</option><option>Service van</option><option>Utility cart</option></select></label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Battery kWh<input className={inputCls} type="number" min="1" value={draft.capKWh} onChange={(e) => setDraft({ ...draft, capKWh: e.target.value })} /></label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Max charge kW<input className={inputCls} type="number" min="1" value={draft.maxKW} onChange={(e) => setDraft({ ...draft, maxKW: e.target.value })} /></label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Current SoC %<input className={inputCls} type="number" min="0" max="100" value={draft.soc} onChange={(e) => setDraft({ ...draft, soc: e.target.value })} /></label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Target SoC %<input className={inputCls} type="number" min="1" max="100" value={draft.requiredSoC} onChange={(e) => setDraft({ ...draft, requiredSoC: e.target.value })} /></label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">Departure<input className={inputCls} type="time" value={draft.departure} onChange={(e) => setDraft({ ...draft, departure: e.target.value })} /></label>
+          <div className="flex items-end gap-2"><Button onClick={() => {
+            const [hh, mm] = draft.departure.split(":").map(Number);
+            const id = draft.id.trim();
+            if (!id || list.some((v) => v.id === id)) { toast("Use a unique vehicle ID"); return; }
+            const vehicle: VehicleSpec = { id, cls: draft.cls, capKWh: Number(draft.capKWh), maxKW: Number(draft.maxKW), soc: Number(draft.soc), requiredSoC: Number(draft.requiredSoC), departure: hh * 4 + Math.round(mm / 15), arrival: NOW, cycles: 0, ageMonths: 0, fastShare: draft.cls === "Shuttle bus" ? 0.9 : draft.cls === "Service van" ? 0.4 : 0, dcOnly: draft.cls === "Shuttle bus", acOnly: draft.cls === "Utility cart" };
+            addVehicle(vehicle); setAdding(false); setDraft({ ...draft, id: "" });
+          }}>Save vehicle</Button><Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button></div>
+        </div>
+      </Panel>}
       <Panel pad={false}>
-        <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
-          <div className="relative min-w-56 flex-1">
+        <div className="grid grid-cols-2 items-center gap-3 border-b border-line p-4 md:flex md:flex-wrap">
+          <div className="relative col-span-2 md:min-w-56 md:flex-1">
             <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" aria-hidden />
             <label htmlFor="fleet-q" className="sr-only">Search vehicles</label>
             <input id="fleet-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by ID, class or charger" className={cx(inputCls, "pl-9")} />
           </div>
           <label className="sr-only" htmlFor="fleet-cls">Class</label>
-          <select id="fleet-cls" value={cls} onChange={(e) => setCls(e.target.value)} className={cx(inputCls, "w-auto")}>
+          <select id="fleet-cls" value={cls} onChange={(e) => setCls(e.target.value)} className={cx(inputCls, "md:max-w-44")}>
             {["All", "Shuttle bus", "Service van", "Utility cart"].map((c) => <option key={c} value={c}>{c === "All" ? "All classes" : c}</option>)}
           </select>
           <label className="sr-only" htmlFor="fleet-st">Readiness</label>
-          <select id="fleet-st" value={st} onChange={(e) => setSt(e.target.value)} className={cx(inputCls, "w-auto")}>
+          <select id="fleet-st" value={st} onChange={(e) => setSt(e.target.value)} className={cx(inputCls, "md:max-w-44")}>
             {["All", "Ready", "Charging", "Scheduled", "At risk", "Idle", "Unavailable"].map((c) => <option key={c} value={c}>{c === "All" ? "All statuses" : c}</option>)}
           </select>
-          <span className="tnum text-xs text-muted" aria-live="polite">{rows.length} of {list.length}{(q || cls !== "All" || st !== "All") && " · filtered"}</span>
+          <span className="tnum col-span-2 text-xs text-muted md:ml-auto" aria-live="polite">{rows.length} of {list.length}{(q || cls !== "All" || st !== "All") && " · filtered"}</span>
           {(q || cls !== "All" || st !== "All") && <Button size="sm" variant="ghost" onClick={() => { setQ(""); setCls("All"); setSt("All"); }}>Clear filters</Button>}
         </div>
         {state.status !== "ready" ? <DataState state={state} emptyTitle="No vehicles loaded">{() => null}</DataState> : rows.length === 0 ? (
@@ -158,15 +247,15 @@ export function Fleet() {
                   {rows.map((v, i) => (
                     <tr key={`${v.id}|${sig}`} style={{ ["--i" as string]: i }} className="row-in group cursor-pointer transition-colors duration-150 hover:bg-soft" onClick={() => navigate(`/app/fleet/${v.id}`)}>
                       <td className="px-4 py-3 font-medium"><Link to={`/app/fleet/${v.id}`} onClick={(e) => e.stopPropagation()}>{v.id}</Link></td>
-                      <td className="px-4 py-3 text-muted">{v.cls}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted">{v.cls}</td>
                       <td className="px-4 py-3"><SocBar v={v} /></td>
-                      <td className="tnum px-4 py-3">{v.estSoH}% <span className="text-xs text-muted">± {v.sohUnc}</span></td>
+                      <td className="tnum px-4 py-3 whitespace-nowrap">{v.estSoH}% <span className="text-xs text-muted">± {v.sohUnc}</span></td>
                       <td className="px-4 py-3"><Status s={v.readiness} /></td>
                       <td className="px-4 py-3 text-xs">{v.priority === "Normal" ? <span className="text-muted">Normal</span> : <Badge tone={v.priority === "High" ? "info" : "neutral"}>{v.priority}</Badge>}</td>
-                      <td className="tnum px-4 py-3">{fmtT(v.arrival)} → {fmtT(v.departure)} <span className="text-xs text-muted">· {v.requiredSoC}%</span></td>
-                      <td className="tnum px-4 py-3">{v.energyRequiredKWh ? `${v.energyRequiredKWh.toFixed(1)} kWh` : <span className="text-muted">—</span>}</td>
+                      <td className="tnum px-4 py-3 whitespace-nowrap">{fmtT(v.arrival)} → {fmtT(v.departure)} <span className="text-xs text-muted">· {v.requiredSoC}%</span></td>
+                      <td className="tnum px-4 py-3 whitespace-nowrap">{v.energyRequiredKWh ? `${v.energyRequiredKWh.toFixed(1)} kWh` : <span className="text-muted">—</span>}</td>
                       <td className="tnum px-4 py-3">{v.session?.chargerId ?? <span className="text-muted">—</span>}</td>
-                      <td className="px-4 py-3 text-right"><ArrowRight size={15} className="inline text-muted opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap"><button type="button" aria-label={`Remove ${v.id} from registry`} title="Remove (undo available)" className="mr-1 inline-grid h-8 w-8 place-items-center rounded-lg text-muted opacity-60 group-hover:opacity-100 hover:bg-err-soft hover:text-err focus-visible:opacity-100" onClick={(e) => { e.stopPropagation(); removeVehicle(v.id); }}><Trash2 size={15} /></button><ArrowRight size={15} className="inline text-muted opacity-0 transition-opacity group-hover:opacity-100" aria-hidden /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -275,7 +364,7 @@ export function VehicleDetail({ id }: { id: string }) {
 }
 
 export function Scheduler() {
-  const { sim, a, change, setA, toast } = useStore();
+  const { sim, a, change, setA, toast, live } = useStore();
   const [sel, setSel] = useState<string | null>(sim.sessions[0]?.vehicleId ?? null);
   const [edit, setEdit] = useState<string | null>(null);
   const cmp = useMemo(() => compareStrategies(a), [a]);
@@ -307,6 +396,7 @@ export function Scheduler() {
         <Metric label="Peak grid import" value={`${sim.totals.peakGrid.toFixed(1)} kW`} hint={`limit ${a.gridLimitKW} kW${sim.totals.exceedSteps ? ` · ▲ exceeded ${sim.totals.exceedSteps * 15} min` : ""}`} tone={sim.totals.exceedSteps ? "err" : undefined} />
         <Metric label="Estimated cost" value={inr(sim.totals.cost)} hint="grid import, demo day" />
       </div>
+      <AcnBaselineStrip live={live} />
       <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
         <Panel title="Charger lanes" sub={`${fmtT(NOW)}–24:00 · ${sim.sessions.length} sessions · select a bar for its rationale`} className="min-w-0">
           <div className="overflow-x-auto">

@@ -15,6 +15,18 @@
   --color-warn: #c58b35;
   --color-err: #b94a48;
   --color-ok: #2e7d62;
+  /* Semantic surfaces and ink for tones (status badges, notices, callouts). */
+  --color-ok-soft: #e3f2ec;
+  --color-warn-soft: #f8eedd;
+  --color-warn-ink: #8a5f1f;
+  --color-err-soft: #f6e3e2;
+  --color-info-soft: #e2f4f7;
+  --color-info-ink: #0d7584;
+  --color-line-strong: #b8c6d6;
+  --color-cyan-hover: #2cc8d9;
+  --color-idle: #9fb3c8;
+  --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.04), 0 1px 1px rgba(11, 18, 32, 0.02);
+  --shadow-pop: 0 24px 60px -20px rgba(11, 18, 32, 0.45), 0 2px 6px rgba(11, 18, 32, 0.08);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
 }
@@ -26,8 +38,27 @@ html {
 body {
   font-family: var(--font-sans);
   color: var(--color-ink);
-  background: #fff;
+  background: var(--color-soft);
   font-feature-settings: "cv11", "ss01";
+}
+::selection {
+  color: var(--color-deep);
+  background: rgba(24, 183, 201, 0.24);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-soft);
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid var(--color-soft);
+  border-radius: 999px;
+  background: #b9c8d6;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8fa5b8;
 }
 .tnum {
   font-variant-numeric: tabular-nums;
@@ -312,9 +343,50 @@ section[id] {
   }
 }
 
+/* Command palette: backdrop fades, dialog settles from slightly above. */
+.palette-in {
+  animation: paletteIn var(--dur-3) var(--ease-out) both;
+}
+@keyframes paletteIn {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--shift-m) * -1)) scale(0.985);
+  }
+}
+/* Live-data indicator: a soft halo, never a blinking dot. */
+.live-dot {
+  position: relative;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0;
+  animation: halo 2.8s var(--ease-out) infinite;
+}
+@keyframes halo {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.6);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  @media (max-width: 639px) {
+    .hero-img {
+      animation-duration: 900ms;
+    }
   }
   .js .reveal {
     opacity: 1;
@@ -330,8 +402,12 @@ section[id] {
   .hero-img,
   .chart-reveal,
   .pop-in,
+  .palette-in,
   .flash {
     animation: none !important;
+  }
+  .live-dot::after {
+    animation: none;
   }
   ::view-transition-group(*),
   ::view-transition-old(*),
