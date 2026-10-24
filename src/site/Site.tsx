@@ -363,10 +363,7 @@ function Header() {
             </ul>
           </details>
           <ButtonLink to="/app/overview" className="mt-2">
-            Open fleet manager
-          </ButtonLink>
-          <ButtonLink to="/app/driver" variant="secondary" className="mt-2">
-            Open driver view
+            Explore the framework
           </ButtonLink>
         </nav>
       </div>
@@ -478,7 +475,7 @@ function Hero() {
             style={{ ["--d" as string]: 3 }}
           >
             <ButtonLink to="/app/overview" size="lg">
-              Open fleet manager <ArrowRight size={16} />
+              Explore the framework <ArrowRight size={16} />
             </ButtonLink>
             <Button
               variant="onDark"
@@ -488,38 +485,13 @@ function Hero() {
               See how it works
             </Button>
           </div>
-          <div
-            className="reveal mt-5 grid max-w-xl gap-3 sm:grid-cols-2"
-            style={{ ["--d" as string]: 3 }}
-          >
-            <ButtonLink
-              to="/app/overview"
-              variant="secondary"
-              className="justify-start border-white/15 bg-white/8 text-left text-white hover:bg-white/15"
-            >
-              <span>
-                <span className="block text-sm font-semibold">EV fleet manager</span>
-                <span className="mt-0.5 block text-xs font-normal text-white/60">Monitor chargers, fleet readiness, energy and alerts.</span>
-              </span>
-            </ButtonLink>
-            <ButtonLink
-              to="/app/driver"
-              variant="secondary"
-              className="justify-start border-white/15 bg-white/8 text-left text-white hover:bg-white/15"
-            >
-              <span>
-                <span className="block text-sm font-semibold">Driver view</span>
-                <span className="mt-0.5 block text-xs font-normal text-white/60">Check SoC, charging progress, departure and available plugs.</span>
-              </span>
-            </ButtonLink>
-          </div>
         </div>
         <dl
           className="reveal mt-16 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/10 pt-6"
           style={{ ["--d" as string]: 4 }}
         >
           {[
-            ["Flexible", "editable vehicle registry"],
+            ["20", "simulated vehicles"],
             ["6", "chargers · DC & AC"],
             ["100 kWp", "rooftop PV · reference case"],
           ].map(([v, l]) => (

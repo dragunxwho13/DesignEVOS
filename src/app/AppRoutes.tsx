@@ -6,7 +6,6 @@ import { Scenarios, SystemView, Alerts, Settings, Methodology } from "./pages3";
 import { Datasets } from "./pages4";
 import { Maintenance, Experiments } from "./pages5";
 import { ButtonLink } from "../components/ui";
-import { DriverHome } from "./driver";
 
 const PAGES: Record<string, (p?: string) => ReactNode> = {
   overview: () => <Overview />,
@@ -25,7 +24,6 @@ const PAGES: Record<string, (p?: string) => ReactNode> = {
   datasets: () => <Datasets />,
   settings: () => <Settings />,
   methodology: () => <Methodology />,
-  driver: () => <DriverHome />,
 };
 
 export default function AppRoutes({ path }: { path: string }) {

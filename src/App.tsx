@@ -25,7 +25,6 @@ const TITLES: Record<string, string> = {
   datasets: "Datasets & sources",
   settings: "Configuration",
   methodology: "Methodology",
-  driver: "Driver view",
 }
 
 export default function App() {

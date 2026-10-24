@@ -28,8 +28,6 @@ export interface Assumptions {
   pvKWp: number;
   storageKWh: number;
   storageKW: number;
-  customVehicles: VehicleSpec[];
-  removedVehicleIds: string[];
 }
 
 export type Strategy = "fcfs" | "rule" | "evos";
@@ -65,8 +63,6 @@ export const DEFAULTS: Assumptions = {
   pvKWp: 100,
   storageKWh: 100,
   storageKW: 50,
-  customVehicles: [],
-  removedVehicleIds: [],
 };
 
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -307,12 +303,7 @@ function simulateUncached(a: Assumptions): SimResult {
   const faults = new Set(a.faults ?? []);
   const strategy: Strategy = a.strategy ?? "evos";
   const ov = a.overrides ?? {};
-  const registry = [...VEHICLES, ...(a.customVehicles ?? [])].filter(
-    (v, index, all) =>
-      !(a.removedVehicleIds ?? []).includes(v.id) &&
-      all.findIndex((candidate) => candidate.id === v.id) === index,
-  );
-  const FLEET: (VehicleSpec & { priority: Priority; dataIssue?: string })[] = registry.map((v) => {
+  const FLEET: (VehicleSpec & { priority: Priority; dataIssue?: string })[] = VEHICLES.map((v) => {
     const o = ov[v.id] ?? {};
     let dataIssue: string | undefined;
     let unavailable = v.unavailable;
