@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>A role-based prototype for EV fleet charging, station operations, energy management, and sustainability analysis.</strong>
+  <strong>A role-based prototype for EV fleet charging, station operation, energy management, and sustainability analysis.</strong>
 </p>
 
 <p align="center">
